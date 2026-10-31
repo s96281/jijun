@@ -5,14 +5,15 @@
 # IndexedDB / IDB
 -keep class idb.** { *; }
 
-# Capacitor
+# Capacitor & Plugins
 -keep class com.getcapacitor.** { *; }
 -keep interface com.getcapacitor.** { *; }
+-keep public class * extends com.getcapacitor.Plugin { *; }
 
 # Google Play Services (required by @capgo/capacitor-social-login)
 -keep class com.google.android.gms.common.** { *; }
 
-# Widget
+# Widget & App
 -keep class com.walkingfish.easyaccounting.** { *; }
 
 # JavaScript interface (WebView JS bridge)
@@ -21,8 +22,10 @@
 }
 
 # 保留所有 PluginMethod 註解的方法
--keepattributes RuntimeVisibleAnnotations
--keep @com.getcapacitor.PluginMethod * { *; }
+-keepattributes *Annotation*
+-keepclassmembers class * {
+    @com.getcapacitor.PluginMethod *;
+}
 
 # 保留 SourceFile 和 LineNumberTable 以便除錯
 -keepattributes SourceFile,LineNumberTable
