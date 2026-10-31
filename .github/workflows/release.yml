@@ -76,8 +76,9 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Accept Android SDK Licenses
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
@@ -134,16 +135,18 @@ jobs:
 
           # 簽署與重命名所有 Release APKs
           for apk in $(find android/app/build/outputs/apk/release -name "*.apk"); do
-            filename=$(basename "$apk")
-            echo "Processing APK: $filename"
+            raw_filename=$(basename "$apk")
+            filename=$(echo "$raw_filename" | sed 's/-unsigned//g')
+            echo "Processing APK: $raw_filename -> $filename"
             "$APKSIGNER" sign --ks $KEYSTORE --ks-key-alias $KEYALIAS --ks-pass pass:$STOREPASS --key-pass pass:$KEYPASS --out "release-artifacts/easy-accounting-$filename" "$apk"
             "$APKSIGNER" verify "release-artifacts/easy-accounting-$filename" && echo "Verified: easy-accounting-$filename"
           done
 
           # 簽署與重命名 AAB (若有)
           for aab in $(find android/app/build/outputs/bundle/release -name "*.aab"); do
-            filename=$(basename "$aab")
-            echo "Processing AAB: $filename"
+            raw_filename=$(basename "$aab")
+            filename=$(echo "$raw_filename" | sed 's/-unsigned//g')
+            echo "Processing AAB: $raw_filename -> $filename"
             cp "$aab" "release-artifacts/easy-accounting-$filename"
             jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 -keystore $KEYSTORE -storepass $STOREPASS -keypass $KEYPASS "release-artifacts/easy-accounting-$filename" $KEYALIAS
           done
