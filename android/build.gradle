@@ -22,9 +22,29 @@ allprojects {
         google()
         mavenCentral()
     }
-    configurations.all {
+    configurations.configureEach {
         resolutionStrategy {
             force 'androidx.browser:browser:1.8.0'
+            eachDependency { DependencyResolveDetails details ->
+                if (details.requested.group == 'androidx.browser' && details.requested.name == 'browser') {
+                    details.useVersion '1.8.0'
+                    details.because 'Compatible with compileSdk 35 and AGP 8.7.2'
+                }
+            }
+        }
+    }
+}
+
+subprojects {
+    project.configurations.configureEach {
+        resolutionStrategy {
+            force 'androidx.browser:browser:1.8.0'
+            eachDependency { DependencyResolveDetails details ->
+                if (details.requested.group == 'androidx.browser' && details.requested.name == 'browser') {
+                    details.useVersion '1.8.0'
+                    details.because 'Compatible with compileSdk 35 and AGP 8.7.2'
+                }
+            }
         }
     }
 }

@@ -16,10 +16,11 @@ android {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
-    // Split APK / ABI 配置（直接分發 APK 時依架構拆分，減少下載體積）
+    // Split APK / ABI 配置（直接分發 APK 時依架構拆分，減少下載體積；執行 bundle 時自動關閉以防止 AAB 構建衝突）
     splits {
         abi {
-            enable true
+            def isRunningBundle = gradle.startParameter.taskNames.any { it.toLowerCase().contains("bundle") }
+            enable !isRunningBundle
             reset()
             include "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
             universalApk true
@@ -34,9 +35,14 @@ android {
     }
 }
 
-configurations.all {
+configurations.configureEach {
     resolutionStrategy {
         force "androidx.browser:browser:$androidxBrowserVersion"
+        eachDependency { DependencyResolveDetails details ->
+            if (details.requested.group == 'androidx.browser' && details.requested.name == 'browser') {
+                details.useVersion '1.8.0'
+            }
+        }
     }
 }
 
