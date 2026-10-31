@@ -3,7 +3,6 @@ node_modules
 /dist
 .hermes
 
-
 # local env files
 .env.local
 .env.*.local
@@ -34,6 +33,7 @@ android/capacitor-cordova-android-plugins/build/
 *.keystore
 
 .worktrees/
+.agents/
 
-# 本地規劃文件（不上傳）
+# Documentation / Specs
 docs/superpowers/

@@ -27,7 +27,6 @@
         "vitest": "^4.1.11"
     },
     "dependencies": {
-        "@capacitor-community/admob": "^8.0.0",
         "@capacitor/android": "^8.5.0",
         "@capacitor/app": "^8.1.1",
         "@capacitor/cli": "^8.5.0",
@@ -53,13 +52,5 @@
     ],
     "author": "ADT109119",
     "license": "MIT",
-    "adConfig": {
-        "isTesting": true,
-        "adsenseClientId": "ca-pub-1250445032458691",
-        "adsenseAdSlot": "3474478906",
-        "gptRewardedAdUnitPath": "/23341410483/jijun",
-        "admobBannerId": "ca-app-pub-3940256099942544/6300978111",
-        "admobRewardedId": "ca-app-pub-3940256099942544/5224354917",
-        "webStoreUrl": "https://jijun.the-walking-fish.com"
-    }
+    "webStoreUrl": "https://jijun.the-walking-fish.com"
 }

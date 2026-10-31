@@ -22,7 +22,6 @@ src/js/
 ├── pluginManager.js     # 擴充功能系統
 ├── pluginStorage.js     # 插件沙箱化儲存
 ├── syncService.js       # Google Drive 雲端備份&同步 (Per-Device 獨立日誌共用帳本同步與 Manifest 架構)
-├── rewardService.js     # 雙平台廣告服務 (Capacitor AdMob + Web AdSense)
 ├── tourManager.js       # 導覽功能核心引擎 (GuideManager 類別，歡迎 Modal、氣泡引導、自動實操演示、狀態持久化)
 ├── tours/               # 導覽定義模組目錄 (包含各功能獨立導覽設定檔與統一註冊表 index.js)
 ├── router.js            # 路由管理
@@ -48,7 +47,7 @@ src/css/
 
 android/                 # Capacitor Android 原生專案
 ├── app/src/main/
-│   └── AndroidManifest.xml  # 含 AdMob App ID
+│   └── AndroidManifest.xml  # 原生配置 (Widget/DeepLink 等)
 └── variables.gradle     # SDK 版本設定 (minSdk=23, targetSdk=35)
 
 capacitor.config.json    # Capacitor 配置 (appId, webDir, androidScheme)
@@ -59,7 +58,6 @@ index.html               # 入口 HTML (零首屏第三方 CDN，Google SDK/QRCo
 
 - `main.js` → 所有模組 (中心樞紐)，**動態 import** `@capacitor/app`
 - `ledgerManager.js` → `dataService.js`, `utils.js`
-- `rewardService.js` → `utils.js` (showToast), **動態 import** `@capacitor-community/admob`
 - `syncService.js` → `dataService.js` (按需載入 Google SDK)
 - `pluginManager.js` → `dataService.js`, `pluginStorage.js`
 
@@ -92,10 +90,6 @@ index.html               # 入口 HTML (零首屏第三方 CDN，Google SDK/QRCo
     - 新增紀錄頁可透過內嵌面板（類似欠款面板）快速建立分期計畫
     - **設計決策**：addPage 啟用分期時，只建立計畫不建立全額記帳紀錄；每期紀錄由 `processAmortizations()` 自動生成
 - **週期性交易 & 攤提/分期 為獨立功能**，不綁定多帳戶模式開關；帳戶選擇器僅在多帳戶模式啟用時顯示
-- **rewardService.js（雙平台）**: 模組載入時偵測 `Capacitor.isNativePlatform()`：
-    - **原生** → 動態 import `@capacitor-community/admob`，使用 AdMob SDK 的 Banner 和 Rewarded Video
-    - **Web** → 保留 AdSense 橫幅 + GPT 獎勵廣告 + 內建推廣廣告備案
-    - 24 小時無廣告狀態存於 `localStorage`
 - **主題系統與深淺色模式 (themeManager.js)**:
     - 支援四態外觀模式 (`THEME_MODES`: `system` 跟隨系統, `light` 淺色, `dark` 深色, `custom` 自訂主題)，預設採用 `system`
     - 透過 `window.matchMedia('(prefers-color-scheme: dark)')` 實作系統色彩偏好即時動態監聽
@@ -105,4 +99,4 @@ index.html               # 入口 HTML (零首屏第三方 CDN，Google SDK/QRCo
     - 整合端側 58M LLM (WASM/wllama) 離線推論、OPFS 快取與規則引擎降級
     - 具備 `applySemanticGuardrail()` 前端語意守門校準，防止小模型因幻覺將「花了/買了/付了」消費口語誤判為收入
     - 支援跨收支重疊分類（如「其他」）防呆驗證與 `CategoryManager.getAllCategories()` 無參數調用
-- **Capacitor Android**: Web 資產打包進 `android/app/src/main/assets/public/`，透過 WebView 載入本地檔案，AdMob 為原生 overlay
+- **Capacitor Android**: Web 資產打包進 `android/app/src/main/assets/public/`，透過 WebView 載入本地檔案

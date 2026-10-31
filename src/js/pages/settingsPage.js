@@ -12,11 +12,6 @@ export class SettingsPage {
                              window.Capacitor.isNativePlatform?.() && 
                              window.Capacitor.getPlatform?.() === 'android';
 
-        const isAdFree = this.app.rewardService?.isAdFree?.()
-        const adFreeRemaining = isAdFree
-            ? this.app.rewardService.formatRemaining()
-            : null
-
         this.app.appContainer.innerHTML = `
             <div class="page active max-w-3xl mx-auto">
                 <div class="flex items-center p-4 pb-2 justify-between bg-wabi-bg sticky top-0 z-10">
@@ -290,23 +285,7 @@ export class SettingsPage {
                             </div>
                         </div>
 
-                        ${isAdFree
-                            ? this.createSettingItem(
-                                  'fa-solid fa-shield-heart text-green-600',
-                                  `已啟用無廣告模式 <span class="text-xs text-green-600 dark:text-green-400 font-medium ml-1">(${adFreeRemaining})</span>`,
-                                  'sponsor-reward-ad-btn'
-                              )
-                            : this.createSettingItem(
-                                  'fa-solid fa-rectangle-ad',
-                                  '觀看廣告以移除廣告 7 天',
-                                  'sponsor-reward-ad-btn'
-                              )}
-
                     </div>
-
-                    <!-- Banner Ad -->
-                    <div id="settings-banner-ad" class="rounded-xl overflow-hidden"></div>
-
                     <div class="pb-24"></div>
                 </div>
             </div>
@@ -364,34 +343,6 @@ export class SettingsPage {
                 window.location.hash = '#sync-settings'
             })
         }
-        // 贊助 - 觀看獎勵廣告以移除廣告 7 天
-        const rewardAdBtn = document.getElementById('sponsor-reward-ad-btn')
-        if (rewardAdBtn) {
-            rewardAdBtn.addEventListener('click', async () => {
-                if (this.app.rewardService?.isAdFree?.()) {
-                    const remaining = this.app.rewardService.formatRemaining()
-                    showToast(
-                        `已啟用無廣告模式（剩餘 ${remaining}），期間內不會顯示任何廣告！`,
-                        'success'
-                    )
-                    return
-                }
-                try {
-                    const granted =
-                        await this.app.rewardService.showRewardedAd()
-                    if (granted) {
-                        this.render()
-                    }
-                } catch (e) {
-                    console.warn('獎勵廣告流程失敗:', e)
-                }
-            })
-        }
-        // 渲染底部橫幅廣告
-        this.app.rewardService
-            .renderBannerAd(document.getElementById('settings-banner-ad'))
-            .catch(() => {})
-
         // PWA install button visibility
         if (this.app.deferredInstallPrompt) {
             const installBtnContainer = document.getElementById(

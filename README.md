@@ -143,7 +143,6 @@
 │   │   ├── pluginManager.js # 擴充功能系統
 │   │   ├── pluginStorage.js # 插件沙箱化儲存
 │   │   ├── syncService.js # Google Drive 雲端同步 (Per-Device 獨立日誌與 Manifest)
-│   │   ├── rewardService.js # 雙平台廣告服務
 │   │   ├── tourManager.js # 新手引導與功能導覽核心
 │   │   ├── tours/         # 模組導覽情境腳本
 │   │   ├── router.js      # 路由管理

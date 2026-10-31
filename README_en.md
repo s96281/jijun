@@ -70,7 +70,7 @@
 
 ```
 ├── android/                 # Capacitor Android native project
-│   ├── app/src/main/        # Native AndroidManifest, Java bridge & AdMob
+│   ├── app/src/main/        # Native AndroidManifest & Java bridge
 │   └── variables.gradle     # SDK version definitions (minSdk=23, targetSdk=35)
 ├── src/
 │   ├── js/

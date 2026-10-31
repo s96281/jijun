@@ -1,7 +1,6 @@
 // ==================== 全域 Mock（Vitest jsdom setup）====================
 
 // ── localStorage 預設值 ────────────────────────────────
-globalThis.localStorage.setItem('adFreeUntil', '')
 globalThis.localStorage.setItem('easy_accounting_settings', JSON.stringify({}))
 
 // ── IndexedDB Mock 狀態 ────────────────────────────────
@@ -282,27 +281,6 @@ globalThis.IDBKeyRange = {
     upperBound: upper => ({ upper }),
 }
 
-// ── GPT / googletag Mock ───────────────────────────────
-const gptListeners = []
-globalThis.googletag = {
-    cmd: { push: fn => fn() },
-    pubads: () => ({
-        addEventListener(type, handler) {
-            gptListeners.push({ type, handler })
-            return { remove: () => {} }
-        },
-        removeEventListener(type, handler) {
-            const idx = gptListeners.findIndex(
-                l => l.type === type && l.handler === handler
-            )
-            if (idx >= 0) gptListeners.splice(idx, 1)
-        },
-        enableServices: vi.fn(),
-        destroySlots: vi.fn(() => {}),
-    }),
-    enums: { OutOfPageFormat: { REWARDED: 'rewarded' } },
-}
-
 vi.mock('idb', () => ({ openDB: () => Promise.resolve(mockDb) }))
 
 // ── Capacitor Mock（非原生平台）──────────────────────────
@@ -321,7 +299,6 @@ beforeEach(() => {
         mockDb._sharedStores = {}
     }
     nextId = 100
-    gptListeners.length = 0
     vi.clearAllMocks()
 })
 

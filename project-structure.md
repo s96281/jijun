@@ -26,7 +26,6 @@ src/js/
 ├── pluginManager.js     # 擴充功能系統
 ├── pluginStorage.js     # 插件沙箱化儲存
 ├── syncService.js       # Google Drive 雲端備份&同步 (含跨裝置 groupMeta 群組資料同步、帳戶/聯絡人同名冪等防護、UUID 主動對齊、Update/Delete 業務鍵兜底防漏與防重複、markAllRemoteChangesAsPulled 檢查點更新與 _resolveDebtContactId 跨帳本外鍵解析、同步後自動觸發 deduplicateAccounts/deduplicateContacts)
-├── rewardService.js     # 雙平台廣告服務 (Capacitor AdMob + Web AdSense)
 ├── tourManager.js       # 導覽功能核心引擎 (GuideManager 類別，歡迎 Modal、氣泡引導、自動實操演示、狀態持久化)
 ├── tours/               # 導覽定義模組目錄 (包含各功能獨立導覽設定檔與統一註冊表 index.js)
 ├── router.js            # 路由管理
@@ -67,7 +66,7 @@ src/vendor/
 
 android/                 # Capacitor Android 原生專案
 ├── app/src/main/
-│   ├── AndroidManifest.xml  # 含 AdMob App ID 與 Widget/DeepLink 配置
+│   ├── AndroidManifest.xml  # 含 Widget/DeepLink 配置與原生權限
 │   ├── java/com/walkingfish/easyaccounting/
 │   │   ├── MainActivity.java           # 註冊 WidgetStoragePlugin
 │   │   ├── WidgetStoragePlugin.java     # 自訂儲存插件 (保存桌面統計/載具/捷徑/行事曆 Widget 資料)
@@ -131,7 +130,6 @@ index.html               # 入口 HTML (零首屏第三方 CDN，Google SDK/QRCo
 
 - `main.js` → 所有模組 (中心樞紐)，**動態 import** `@capacitor/app`
 - `ledgerManager.js` → `dataService.js`, `utils.js`
-- `rewardService.js` → `utils.js` (showToast), 動態 import `@capacitor-community/admob`
 - `syncService.js` → `dataService.js` (按需載入 Google SDK)
 - `pluginManager.js` → `dataService.js`, `pluginStorage.js`
 

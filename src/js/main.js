@@ -25,7 +25,6 @@ import { GroupManager } from './groupManager.js'
 import { LedgerManager } from './ledgerManager.js'
 import { PluginManager } from './pluginManager.js'
 import { SyncService } from './syncService.js'
-import { RewardService } from './rewardService.js'
 import { NotificationService } from './notificationService.js'
 import { ThemeManager } from './themeManager.js'
 import { AIService } from './aiService.js'
@@ -78,7 +77,9 @@ export class EasyAccountingApp {
         this.ledgerManager = new LedgerManager(this.dataService, this)
         this.pluginManager = new PluginManager(this.dataService, this)
         this.syncService = new SyncService(this.dataService)
-        this.rewardService = new RewardService()
+        try {
+            localStorage.removeItem('adFreeUntil')
+        } catch (_) {}
         this.notificationService = new NotificationService(this.dataService)
         this.themeManager = new ThemeManager(this.dataService)
         this.guideManager = new GuideManager(this)

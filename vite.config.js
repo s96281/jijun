@@ -4,11 +4,14 @@ import { readFileSync, writeFileSync, readdirSync } from 'fs'
 import { resolve } from 'path'
 import { createHash } from 'crypto'
 
-// ==================== 版本號與廣告設定統一來源 ====================
+// ==================== 版本號與商店設定統一來源 ====================
 // 皆從 package.json 讀取，build 時注入到 JS
 const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'))
 const APP_VERSION = pkg.version
-const adConfig = pkg.adConfig || {}
+const webStoreUrl =
+    pkg.webStoreUrl ||
+    (pkg.adConfig && pkg.adConfig.webStoreUrl) ||
+    'https://jijun.the-walking-fish.com'
 
 /**
  * Vite 插件：build 完成後處理 public/serviceWorker.js（不經過 Vite 轉換）
@@ -91,22 +94,7 @@ export default defineConfig({
     define: {
         // 編譯時常數：所有 src/ 下的 JS 都可直接使用
         __APP_VERSION__: JSON.stringify(APP_VERSION),
-        // 廣告設定 (來源：package.json → adConfig)
-        __AD_IS_TESTING__: JSON.stringify(adConfig.isTesting ?? true),
-        __AD_ADSENSE_CLIENT_ID__: JSON.stringify(
-            adConfig.adsenseClientId ?? ''
-        ),
-        __AD_ADSENSE_AD_SLOT__: JSON.stringify(adConfig.adsenseAdSlot ?? ''),
-        __AD_GPT_REWARDED_PATH__: JSON.stringify(
-            adConfig.gptRewardedAdUnitPath ?? ''
-        ),
-        __AD_ADMOB_BANNER_ID__: JSON.stringify(adConfig.admobBannerId ?? ''),
-        __AD_ADMOB_REWARDED_ID__: JSON.stringify(
-            adConfig.admobRewardedId ?? ''
-        ),
-        __WEB_STORE_URL__: JSON.stringify(
-            adConfig.webStoreUrl ?? 'https://jijun.the-walking-fish.com'
-        ),
+        __WEB_STORE_URL__: JSON.stringify(webStoreUrl),
     },
     build: {
         outDir: 'dist',

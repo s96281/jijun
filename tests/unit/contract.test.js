@@ -16,7 +16,6 @@ import { GroupManager } from '../../src/js/groupManager.js'
 import { LedgerManager } from '../../src/js/ledgerManager.js'
 import { PluginManager } from '../../src/js/pluginManager.js'
 import { SyncService } from '../../src/js/syncService.js'
-import { RewardService } from '../../src/js/rewardService.js'
 import { NotificationService } from '../../src/js/notificationService.js'
 import { ThemeManager } from '../../src/js/themeManager.js'
 import { GuideManager } from '../../src/js/tourManager.js'
@@ -35,7 +34,6 @@ const serviceClasses = {
     ledgerManager: LedgerManager,
     pluginManager: PluginManager,
     syncService: SyncService,
-    rewardService: RewardService,
     notificationService: NotificationService,
     themeManager: ThemeManager,
     guideManager: GuideManager,

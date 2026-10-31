@@ -9,8 +9,7 @@
 -keep class com.getcapacitor.** { *; }
 -keep interface com.getcapacitor.** { *; }
 
-# AdMob
--keep class com.google.android.gms.ads.** { *; }
+# Google Play Services (required by @capgo/capacitor-social-login)
 -keep class com.google.android.gms.common.** { *; }
 
 # Widget
