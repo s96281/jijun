@@ -1,5 +1,13 @@
 // 版本更新日誌模組
 export const CHANGELOG = {
+    '2.1.8.7': {
+        date: '2026-11-04',
+        title: '版本號與 Android 內部版本同步更新',
+        features: [
+            '版本號與 Release 標籤同步：應用程式版本升級至 v2.1.8.7。',
+            'Android 內部版本號同步更新：同步更新 Android versionName (2.1.8.7) 與 versionCode (21807)。',
+        ],
+    },
     '2.1.8.6': {
         date: '2026-11-03',
         title: '飲食預設分類與 GitHub 倉庫導向 s96281/jijun',
