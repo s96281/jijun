@@ -63,10 +63,10 @@ npm start
 2. 建立專案，啟用 **Google Drive API**
 3. 建立 **OAuth 2.0 Client ID**（Web application 類型）
 4. 設定 **Authorized JavaScript origins**：
-    - `https://jijun.adt109119.com`
+    - `https://jijun.the-walking-fish.com`
     - `http://localhost:3000`（開發用）
 5. 設定 **Authorized redirect URIs**：
-    - `https://jijun.adt109119.com`
+    - `https://jijun.the-walking-fish.com`
     - `http://localhost:3000`
 6. 記下 `Client ID` 和 `Client Secret`
 

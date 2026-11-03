@@ -500,8 +500,8 @@ npx cap open android
 
 歡迎提交 Issue 和 Pull Request 來改善這個專案！
 
-<a href="https://github.com/ADT109119/jijun/graphs/contributors" target="_blank">
-  <img src="https://contrib.rocks/image?repo=ADT109119/jijun"/>
+<a href="https://github.com/s96281/jijun/graphs/contributors" target="_blank">
+  <img src="https://contrib.rocks/image?repo=s96281/jijun"/>
 </a>
 
 ## 📄 授權

@@ -393,7 +393,10 @@ export class AddPage {
             if (!toggleDebtBtn) return
             toggleDebtBtn.classList.toggle('text-orange-500', debtEnabled)
             toggleDebtBtn.classList.toggle('bg-orange-500/10', debtEnabled)
-            toggleDebtBtn.classList.toggle('text-wabi-text-secondary', !debtEnabled)
+            toggleDebtBtn.classList.toggle(
+                'text-wabi-text-secondary',
+                !debtEnabled
+            )
         }
         const setDebtPanelOpen = open => {
             debtPanelOpen = open
@@ -407,7 +410,11 @@ export class AddPage {
             if (sel) sel.value = ''
             // 重置欠款類型按鈕為預設（別人欠我）
             document.querySelectorAll('.debt-add-type-btn').forEach(b => {
-                b.classList.remove('bg-wabi-income', 'bg-wabi-expense', 'text-wabi-surface')
+                b.classList.remove(
+                    'bg-wabi-income',
+                    'bg-wabi-expense',
+                    'text-wabi-surface'
+                )
                 b.classList.add('text-wabi-text-secondary')
             })
             const recv = document.getElementById('debt-type-receivable-add')
@@ -461,6 +468,22 @@ export class AddPage {
             if (noteParam && noteInput) {
                 noteInput.value = noteParam
             }
+        }
+
+        // Helper: 取得預設支出分類（優先選用 'food'，若被使用者隱藏則回退至第一個可見支出分類）
+        const getDefaultExpenseCategory = () => {
+            if (this.app?.categoryManager?.getAllCategories) {
+                const visible =
+                    this.app.categoryManager.getAllCategories('expense')
+                if (visible?.some(c => c.id === 'food')) return 'food'
+                if (visible && visible.length > 0) return visible[0].id
+            }
+            return 'food'
+        }
+
+        // R1: 新增紀錄模式下，支出類別預設選取「飲食」(food)；收入類別維持無預設分類
+        if (!isEditMode && currentType === 'expense' && !selectedCategory) {
+            selectedCategory = getDefaultExpenseCategory()
         }
 
         // Setup debt panel if available
@@ -523,9 +546,13 @@ export class AddPage {
                             return
                         }
                         // 檢查同帳本是否已存在同名聯絡人，若存在則直接選用
-                        const existingContacts = await this.app.dataService.getContacts()
+                        const existingContacts =
+                            await this.app.dataService.getContacts()
                         const normName = name.toLowerCase()
-                        const existing = existingContacts.find(c => (c.name || '').trim().toLowerCase() === normName)
+                        const existing = existingContacts.find(
+                            c =>
+                                (c.name || '').trim().toLowerCase() === normName
+                        )
                         if (existing) {
                             closeModal()
                             await loadContacts(existing.id)
@@ -624,7 +651,10 @@ export class AddPage {
             installmentEnabled = isInstallmentConfigured()
             if (!installmentBtn) return
             installmentBtn.classList.toggle('text-blue-500', installmentEnabled)
-            installmentBtn.classList.toggle('bg-blue-500/10', installmentEnabled)
+            installmentBtn.classList.toggle(
+                'bg-blue-500/10',
+                installmentEnabled
+            )
             installmentBtn.classList.toggle(
                 'text-wabi-text-secondary',
                 !installmentEnabled
@@ -636,7 +666,8 @@ export class AddPage {
             installmentPanel.classList.toggle('hidden', !open)
         }
         const clearInstallmentConfig = () => {
-            ['installment-name',
+            ;[
+                'installment-name',
                 'installment-periods',
                 'installment-downpayment',
                 'installment-interest',
@@ -646,7 +677,9 @@ export class AddPage {
             })
             const freqEl = document.getElementById('installment-frequency')
             if (freqEl) freqEl.value = 'monthly'
-            const stratEl = document.getElementById('installment-decimal-strategy')
+            const stratEl = document.getElementById(
+                'installment-decimal-strategy'
+            )
             if (stratEl) stratEl.value = 'round'
             // 類型重置為「分期付款」
             installmentType = 'installment'
@@ -683,9 +716,7 @@ export class AddPage {
         let upfrontDebitName = ''
         function getUpfrontCard() {
             const sel =
-                advancedModeEnabled &&
-                selectedAccountId != null &&
-                !isEditMode
+                advancedModeEnabled && selectedAccountId != null && !isEditMode
                     ? accounts.find(a => a.id === selectedAccountId)
                     : null
             return sel && sel.type === 'credit_card' ? sel : null
@@ -698,14 +729,11 @@ export class AddPage {
             const dpWrap = document.getElementById(
                 'installment-downpayment-wrap'
             )
-            const dpInput = document.getElementById(
-                'installment-downpayment'
-            )
+            const dpInput = document.getElementById('installment-downpayment')
             const card = getUpfrontCard()
             upfrontActive = !!card
             upfrontDebitName = card
-                ? accounts.find(a => a.id === card.autoPayAccountId)?.name ||
-                  ''
+                ? accounts.find(a => a.id === card.autoPayAccountId)?.name || ''
                 : ''
             if (hint) hint.classList.toggle('hidden', !card)
             if (dpWrap) dpWrap.classList.toggle('hidden', !!card)
@@ -727,11 +755,12 @@ export class AddPage {
                         document.getElementById('installment-interest')?.value
                     ) || 0,
                     freq,
-                    document
-                        .getElementById('installment-decimal-strategy')
+                    document.getElementById('installment-decimal-strategy')
                         ?.value || 'round'
                 )
-                const anchorDay = currentDate ? parseInt(currentDate.split('-')[2], 10) : null
+                const anchorDay = currentDate
+                    ? parseInt(currentDate.split('-')[2], 10)
+                    : null
                 const p1Date = calculateNextDueDate(
                     currentDate,
                     freq,
@@ -742,7 +771,7 @@ export class AddPage {
                     upfrontDebitName
                         ? `扣款帳戶：${upfrontDebitName}`
                         : '未設定扣款帳戶，到期不產生扣款紀錄'
-                    }）`
+                }）`
             }
         }
 
@@ -823,12 +852,10 @@ export class AddPage {
                 'installment-downpayment',
                 'installment-interest',
             ].forEach(id => {
-                document
-                    .getElementById(id)
-                    ?.addEventListener('input', () => {
-                        calcPreview()
-                        refreshUpfrontState()
-                    })
+                document.getElementById(id)?.addEventListener('input', () => {
+                    calcPreview()
+                    refreshUpfrontState()
+                })
             })
             // 名稱輸入時更新右上角按鈕 active
             document
@@ -878,7 +905,10 @@ export class AddPage {
             if (!toggleGroupBtn) return
             toggleGroupBtn.classList.toggle('text-emerald-500', groupEnabled)
             toggleGroupBtn.classList.toggle('bg-emerald-500/10', groupEnabled)
-            toggleGroupBtn.classList.toggle('text-wabi-text-secondary', !groupEnabled)
+            toggleGroupBtn.classList.toggle(
+                'text-wabi-text-secondary',
+                !groupEnabled
+            )
         }
         const setGroupPanelOpen = open => {
             groupPanelOpen = open
@@ -898,15 +928,19 @@ export class AddPage {
 
             // 關閉＝取消：清空群組設定並關閉面板（避免按錯後直接儲存）
             // 「收合但保留設定」請用右上角按鈕（再點一次）
-            document.getElementById('close-group-panel')?.addEventListener('click', () => {
-                clearGroupConfig()
-                setGroupPanelOpen(false)
-            })
+            document
+                .getElementById('close-group-panel')
+                ?.addEventListener('click', () => {
+                    clearGroupConfig()
+                    setGroupPanelOpen(false)
+                })
 
             // 建立即生效：輸入框 Enter/「建立」→ 立即建立群組並自動選取
             // （與群組管理頁同語義：群組是獨立資源，記帳存不存、群組都已存在）
             const startCreateGroupRow = () => {
-                const quickList = document.getElementById('custom-group-quick-list')
+                const quickList = document.getElementById(
+                    'custom-group-quick-list'
+                )
                 const createRow = quickList?.querySelector('#group-create-row')
                 if (!createRow) return
                 createRow.innerHTML = `
@@ -926,9 +960,12 @@ export class AddPage {
                         return
                     }
                     try {
-                        const newId = await this.app.groupManager.createGroup(name)
+                        const newId =
+                            await this.app.groupManager.createGroup(name)
                         await loadGroupList() // 重新載入（已含新群組）並渲染
-                        const created = allCachedGroups.find(g => g.id === newId)
+                        const created = allCachedGroups.find(
+                            g => g.id === newId
+                        )
                         if (created) {
                             updateGroupSelectUI(created)
                         }
@@ -938,7 +975,9 @@ export class AddPage {
                         showToast('建立群組失敗', 'error')
                     }
                 }
-                createRow.querySelector('#group-create-confirm').addEventListener('click', confirmCreate)
+                createRow
+                    .querySelector('#group-create-confirm')
+                    .addEventListener('click', confirmCreate)
                 input.addEventListener('keydown', e => {
                     if (e.key === 'Enter') {
                         e.preventDefault()
@@ -950,9 +989,15 @@ export class AddPage {
             let allCachedGroups = []
 
             const updateGroupSelectUI = (group = null) => {
-                const selectedCard = document.getElementById('selected-group-card')
-                const nameDisplay = document.getElementById('selected-group-name-display')
-                const actionsRow = document.getElementById('selected-group-actions')
+                const selectedCard = document.getElementById(
+                    'selected-group-card'
+                )
+                const nameDisplay = document.getElementById(
+                    'selected-group-name-display'
+                )
+                const actionsRow = document.getElementById(
+                    'selected-group-actions'
+                )
                 if (!nameDisplay) return
                 if (group) {
                     selectedGroupId = group.id
@@ -978,7 +1023,10 @@ export class AddPage {
             const clearGroupConfig = () => {
                 // 清空群組設定：取消已選群組；重繪清單（若建立輸入行開著會恢復成「+ 建立新群組」觸發行）
                 updateGroupSelectUI(null) // 清 selectedGroupId + 標記 groupCleared + 更新按鈕
-                renderQuickList(document.getElementById('custom-group-search-input')?.value || '')
+                renderQuickList(
+                    document.getElementById('custom-group-search-input')
+                        ?.value || ''
+                )
             }
 
             // 點「⋯」管理：細節 / 改名 / 刪除（與群組管理頁同款行為，modal 就地開啟不跳頁）
@@ -999,8 +1047,12 @@ export class AddPage {
                 if (kind === 'delete') {
                     const isCurrent = selectedGroupId === gid
                     const msg = isCurrent
-                        ? '確定要刪除群組「' + target.name + '」嗎？群組刪除後，屬於該群組的記帳紀錄將不會被刪除，但會解除與群組的關聯（包含目前這筆待存紀錄的選取）。'
-                        : '確定要刪除群組「' + target.name + '」嗎？群組刪除後，屬於該群組的記帳紀錄將不會被刪除，但會解除與群組的關聯。'
+                        ? '確定要刪除群組「' +
+                          target.name +
+                          '」嗎？群組刪除後，屬於該群組的記帳紀錄將不會被刪除，但會解除與群組的關聯（包含目前這筆待存紀錄的選取）。'
+                        : '確定要刪除群組「' +
+                          target.name +
+                          '」嗎？群組刪除後，屬於該群組的記帳紀錄將不會被刪除，但會解除與群組的關聯。'
                     if (!(await customConfirm(msg, '刪除群組'))) return
                     try {
                         await this.app.groupManager.deleteGroup(gid)
@@ -1014,12 +1066,13 @@ export class AddPage {
                 }
             }
 
-            const showGroupRenameModal = (gid) => {
+            const showGroupRenameModal = gid => {
                 return new Promise(resolve => {
                     const target = allCachedGroups.find(g => g.id === gid)
                     if (!target) return resolve()
                     const modal = document.createElement('div')
-                    modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4'
+                    modal.className =
+                        'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4'
                     modal.innerHTML = `
                         <div class="bg-wabi-bg rounded-lg max-w-sm w-full p-6 shadow-xl">
                             <h3 class="text-lg font-bold mb-4 text-wabi-primary">重命名群組</h3>
@@ -1039,48 +1092,71 @@ export class AddPage {
                         </div>
                     `
                     document.body.appendChild(modal)
-                    const close = () => { modal.remove(); resolve() }
+                    const close = () => {
+                        modal.remove()
+                        resolve()
+                    }
                     const input = modal.querySelector('#group-rename-input')
                     setTimeout(() => input?.focus(), 100)
-                    modal.querySelector('#group-rename-cancel-btn').addEventListener('click', close)
-                    modal.addEventListener('click', e => { if (e.target === modal) close() })
-                    modal.querySelector('#group-rename-save-btn').addEventListener('click', async () => {
-                        const name = input.value.trim()
-                        if (!name) {
-                            customAlert('請輸入群組名稱')
-                            return
-                        }
-                        try {
-                            await this.app.groupManager.renameGroup(gid, name)
-                            showToast('已更新群組名稱', 'success')
-                            close()
-                            await loadGroupList()
-                            // 若改名的就是已選群組，同步已選卡片名稱顯示
-                            const renamed = allCachedGroups.find(g => g.id === gid)
-                            if (renamed && selectedGroupId === gid) {
-                                updateGroupSelectUI(renamed)
-                            }
-                        } catch (e) {
-                            console.error('Failed to rename group:', e)
-                            showToast('改名失敗', 'error')
-                        }
+                    modal
+                        .querySelector('#group-rename-cancel-btn')
+                        .addEventListener('click', close)
+                    modal.addEventListener('click', e => {
+                        if (e.target === modal) close()
                     })
+                    modal
+                        .querySelector('#group-rename-save-btn')
+                        .addEventListener('click', async () => {
+                            const name = input.value.trim()
+                            if (!name) {
+                                customAlert('請輸入群組名稱')
+                                return
+                            }
+                            try {
+                                await this.app.groupManager.renameGroup(
+                                    gid,
+                                    name
+                                )
+                                showToast('已更新群組名稱', 'success')
+                                close()
+                                await loadGroupList()
+                                // 若改名的就是已選群組，同步已選卡片名稱顯示
+                                const renamed = allCachedGroups.find(
+                                    g => g.id === gid
+                                )
+                                if (renamed && selectedGroupId === gid) {
+                                    updateGroupSelectUI(renamed)
+                                }
+                            } catch (e) {
+                                console.error('Failed to rename group:', e)
+                                showToast('改名失敗', 'error')
+                            }
+                        })
                     input?.addEventListener('keydown', e => {
-                        if (e.key === 'Enter') modal.querySelector('#group-rename-save-btn')?.click()
+                        if (e.key === 'Enter')
+                            modal
+                                .querySelector('#group-rename-save-btn')
+                                ?.click()
                     })
                 })
             }
 
             const renderQuickList = (query = '') => {
-                const quickList = document.getElementById('custom-group-quick-list')
+                const quickList = document.getElementById(
+                    'custom-group-quick-list'
+                )
                 if (!quickList) return
 
                 const cleanQuery = query.trim().toLowerCase()
                 const filtered = cleanQuery
-                    ? allCachedGroups.filter(g => g.name.toLowerCase().includes(cleanQuery))
+                    ? allCachedGroups.filter(g =>
+                          g.name.toLowerCase().includes(cleanQuery)
+                      )
                     : allCachedGroups
                 // 搜尋：顯示全部符合；未搜尋：近期 5 筆
-                const displayItems = cleanQuery ? filtered : filtered.slice(0, 5)
+                const displayItems = cleanQuery
+                    ? filtered
+                    : filtered.slice(0, 5)
                 const hasMore = !cleanQuery && filtered.length > 5
 
                 const rowHtml = g => {
@@ -1123,7 +1199,11 @@ export class AddPage {
                             </div>
                             ${createRowHtml}
                         `
-                        quickList.querySelector('#group-create-trigger')?.addEventListener('click', () => startCreateGroupRow())
+                        quickList
+                            .querySelector('#group-create-trigger')
+                            ?.addEventListener('click', () =>
+                                startCreateGroupRow()
+                            )
                     }
                     return
                 }
@@ -1143,42 +1223,59 @@ export class AddPage {
                 quickList.innerHTML = html
 
                 // 選取（已結清 → 錯誤前置 toast，不進入選取狀態）
-                quickList.querySelectorAll('.group-option-item').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        const gid = btn.dataset.groupId
-                        const target = allCachedGroups.find(g => g.id === gid)
-                        if (!target) return
-                        if (target.settled) {
-                            showToast('已結清的群組無法加入新紀錄', 'error')
-                            return
-                        }
-                        updateGroupSelectUI(target)
-                        renderQuickList(document.getElementById('custom-group-search-input')?.value || '')
+                quickList
+                    .querySelectorAll('.group-option-item')
+                    .forEach(btn => {
+                        btn.addEventListener('click', () => {
+                            const gid = btn.dataset.groupId
+                            const target = allCachedGroups.find(
+                                g => g.id === gid
+                            )
+                            if (!target) return
+                            if (target.settled) {
+                                showToast('已結清的群組無法加入新紀錄', 'error')
+                                return
+                            }
+                            updateGroupSelectUI(target)
+                            renderQuickList(
+                                document.getElementById(
+                                    'custom-group-search-input'
+                                )?.value || ''
+                            )
+                        })
                     })
-                })
 
                 // 建立行觸發
-                quickList.querySelector('#group-create-trigger')?.addEventListener('click', () => startCreateGroupRow())
+                quickList
+                    .querySelector('#group-create-trigger')
+                    ?.addEventListener('click', () => startCreateGroupRow())
 
                 // 每行「⋯」管理
-                quickList.querySelectorAll('[data-group-mgmt-open]').forEach(btn => {
-                    btn.addEventListener('click', () => handleGroupMgmtMenu(btn.dataset.groupMgmtOpen))
-                })
+                quickList
+                    .querySelectorAll('[data-group-mgmt-open]')
+                    .forEach(btn => {
+                        btn.addEventListener('click', () =>
+                            handleGroupMgmtMenu(btn.dataset.groupMgmtOpen)
+                        )
+                    })
 
-                quickList.querySelector('#quick-list-more-btn')?.addEventListener('click', () => {
-                    showGroupPickerModal()
-                })
+                quickList
+                    .querySelector('#quick-list-more-btn')
+                    ?.addEventListener('click', () => {
+                        showGroupPickerModal()
+                    })
             }
 
             // 行上「⋯」→ 小型管理選單（細節/改名/刪除）
-            const handleGroupMgmtMenu = (gid) => {
+            const handleGroupMgmtMenu = gid => {
                 const target = allCachedGroups.find(g => g.id === gid)
                 if (!target) return
                 // 已有選單先收掉
                 document.getElementById('group-mgmt-menu')?.remove()
                 const menu = document.createElement('div')
                 menu.id = 'group-mgmt-menu'
-                menu.className = 'fixed z-[60] bg-wabi-surface border border-wabi-border rounded-xl shadow-xl py-1 min-w-36'
+                menu.className =
+                    'fixed z-[60] bg-wabi-surface border border-wabi-border rounded-xl shadow-xl py-1 min-w-36'
                 menu.innerHTML = `
                     <button type="button" data-mgmt="detail" class="w-full text-left px-4 py-2.5 text-sm hover:bg-wabi-surface/70 transition-colors flex items-center gap-2">
                         <i class="fa-solid fa-circle-info text-wabi-primary w-4"></i>細節
@@ -1192,13 +1289,24 @@ export class AddPage {
                 `
                 document.body.appendChild(menu)
                 // 定位到按鈕右下方，手機視口內防溢出
-                const anchorRect = document.querySelector(`[data-group-mgmt-open="${CSS.escape(gid)}"]`)?.getBoundingClientRect()
+                const anchorRect = document
+                    .querySelector(
+                        `[data-group-mgmt-open="${CSS.escape(gid)}"]`
+                    )
+                    ?.getBoundingClientRect()
                 const menuWidth = 160
                 const menuHeight = 132
-                let left = anchorRect ? anchorRect.right + 4 : (window.innerWidth - menuWidth - 12)
-                if (left + menuWidth > window.innerWidth - 8) left = Math.max(8, window.innerWidth - menuWidth - 8)
+                let left = anchorRect
+                    ? anchorRect.right + 4
+                    : window.innerWidth - menuWidth - 12
+                if (left + menuWidth > window.innerWidth - 8)
+                    left = Math.max(8, window.innerWidth - menuWidth - 8)
                 let top = anchorRect ? anchorRect.bottom + 4 : 120
-                if (top + menuHeight > window.innerHeight - 8) top = Math.max(8, (anchorRect ? anchorRect.top : 120) - menuHeight - 4)
+                if (top + menuHeight > window.innerHeight - 8)
+                    top = Math.max(
+                        8,
+                        (anchorRect ? anchorRect.top : 120) - menuHeight - 4
+                    )
                 menu.style.left = left + 'px'
                 menu.style.top = top + 'px'
                 const closeMenu = () => {
@@ -1208,7 +1316,10 @@ export class AddPage {
                 const onDocClick = e => {
                     if (!menu.contains(e.target)) closeMenu()
                 }
-                setTimeout(() => document.addEventListener('click', onDocClick, true), 0)
+                setTimeout(
+                    () => document.addEventListener('click', onDocClick, true),
+                    0
+                )
                 menu.querySelectorAll('[data-mgmt]').forEach(btn => {
                     btn.addEventListener('click', e => {
                         e.stopPropagation()
@@ -1235,9 +1346,15 @@ export class AddPage {
                     })
 
                     // If editing a record with groupId, set initial selection
-                    if (isEditMode && recordToEdit?.groupId && !groupEditPrefilled) {
+                    if (
+                        isEditMode &&
+                        recordToEdit?.groupId &&
+                        !groupEditPrefilled
+                    ) {
                         groupEditPrefilled = true
-                        const existing = allCachedGroups.find(g => g.id === recordToEdit.groupId)
+                        const existing = allCachedGroups.find(
+                            g => g.id === recordToEdit.groupId
+                        )
                         if (existing) {
                             // 顯示既有群組：面板自動展開（收合但保留設定），
                             // 右上角按鈕 active，並提供「取消關聯」出口
@@ -1261,47 +1378,66 @@ export class AddPage {
             }
 
             // Search input listener
-            document.getElementById('custom-group-search-input')?.addEventListener('input', e => {
-                renderQuickList(e.target.value)
-            })
+            document
+                .getElementById('custom-group-search-input')
+                ?.addEventListener('input', e => {
+                    renderQuickList(e.target.value)
+                })
 
             // Clear button listener
-            document.getElementById('clear-selected-group-btn')?.addEventListener('click', () => {
-                updateGroupSelectUI(null)
-                renderQuickList(document.getElementById('custom-group-search-input')?.value || '')
-            })
+            document
+                .getElementById('clear-selected-group-btn')
+                ?.addEventListener('click', () => {
+                    updateGroupSelectUI(null)
+                    renderQuickList(
+                        document.getElementById('custom-group-search-input')
+                            ?.value || ''
+                    )
+                })
 
             // 已選卡片的管理列（細節/改名/刪除）
-            document.querySelectorAll('#selected-group-actions [data-group-mgmt]').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    if (!selectedGroupId) return
-                    handleGroupMgmt(btn.dataset.groupMgmt, selectedGroupId)
+            document
+                .querySelectorAll('#selected-group-actions [data-group-mgmt]')
+                .forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        if (!selectedGroupId) return
+                        handleGroupMgmt(btn.dataset.groupMgmt, selectedGroupId)
+                    })
                 })
-            })
 
             // Modal 細選彈窗
             const showGroupPickerModal = () => {
                 const modal = document.createElement('div')
                 modal.id = 'group-picker-modal'
-                modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4'
+                modal.className =
+                    'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4'
 
                 const renderModalContent = (q = '') => {
                     const cleanQ = q.trim().toLowerCase()
                     let items = allCachedGroups
                     if (cleanQ) {
-                        items = items.filter(g => g.name.toLowerCase().includes(cleanQ))
+                        items = items.filter(g =>
+                            g.name.toLowerCase().includes(cleanQ)
+                        )
                     }
 
                     const activeItems = items.filter(g => !g.settled)
                     const settledItems = items.filter(g => g.settled)
 
-                    const buildSection = (title, list, badgeClass, badgeText) => {
+                    const buildSection = (
+                        title,
+                        list,
+                        badgeClass,
+                        badgeText
+                    ) => {
                         if (list.length === 0) return ''
                         return `
                             <div class="mb-4">
                                 <h4 class="text-xs font-semibold text-wabi-text-secondary uppercase tracking-wider mb-2">${title} (${list.length})</h4>
                                 <div class="space-y-1.5">
-                                    ${list.map(g => `
+                                    ${list
+                                        .map(
+                                            g => `
                                         <button type="button" data-gid="${g.id}" class="modal-group-item w-full text-left p-3 rounded-lg border border-wabi-border bg-wabi-surface hover:border-emerald-500 transition-colors flex items-center justify-between ${selectedGroupId === g.id ? 'ring-2 ring-emerald-500/50 bg-emerald-500/5' : ''}">
                                             <div class="flex items-center gap-3 min-w-0">
                                                 <div class="size-8 rounded-lg flex items-center justify-center bg-emerald-500/10 text-emerald-600 shrink-0">
@@ -1317,36 +1453,60 @@ export class AddPage {
                                                 <span class="inline-block text-[10px] px-1.5 py-0.5 rounded ${badgeClass}">${badgeText}</span>
                                             </div>
                                         </button>
-                                    `).join('')}
+                                    `
+                                        )
+                                        .join('')}
                                 </div>
                             </div>
                         `
                     }
 
-                    const activeHtml = buildSection('進行中群組', activeItems, 'bg-emerald-500/10 text-emerald-600', '進行中')
-                    const settledHtml = buildSection('已結清群組', settledItems, 'bg-wabi-text-secondary/10 text-wabi-text-secondary', '已結清')
+                    const activeHtml = buildSection(
+                        '進行中群組',
+                        activeItems,
+                        'bg-emerald-500/10 text-emerald-600',
+                        '進行中'
+                    )
+                    const settledHtml = buildSection(
+                        '已結清群組',
+                        settledItems,
+                        'bg-wabi-text-secondary/10 text-wabi-text-secondary',
+                        '已結清'
+                    )
 
-                    const container = modal.querySelector('#modal-group-list-container')
+                    const container = modal.querySelector(
+                        '#modal-group-list-container'
+                    )
                     if (container) {
-                        container.innerHTML = (activeHtml || settledHtml) ? (activeHtml + settledHtml) : '<div class="py-8 text-center text-wabi-text-secondary text-sm">無符合的群組</div>'
-                        container.querySelectorAll('.modal-group-item').forEach(btn => {
-                            btn.addEventListener('click', () => {
-                                const gid = btn.dataset.gid
-                                const target = allCachedGroups.find(g => g.id === gid)
-                                if (!target) {
+                        container.innerHTML =
+                            activeHtml || settledHtml
+                                ? activeHtml + settledHtml
+                                : '<div class="py-8 text-center text-wabi-text-secondary text-sm">無符合的群組</div>'
+                        container
+                            .querySelectorAll('.modal-group-item')
+                            .forEach(btn => {
+                                btn.addEventListener('click', () => {
+                                    const gid = btn.dataset.gid
+                                    const target = allCachedGroups.find(
+                                        g => g.id === gid
+                                    )
+                                    if (!target) {
+                                        modal.remove()
+                                        return
+                                    }
+                                    if (target.settled) {
+                                        // 錯誤前置：不進入選取狀態，modal 保留方便改選
+                                        showToast(
+                                            '已結清的群組無法加入新紀錄',
+                                            'error'
+                                        )
+                                        return
+                                    }
+                                    updateGroupSelectUI(target)
+                                    renderQuickList()
                                     modal.remove()
-                                    return
-                                }
-                                if (target.settled) {
-                                    // 錯誤前置：不進入選取狀態，modal 保留方便改選
-                                    showToast('已結清的群組無法加入新紀錄', 'error')
-                                    return
-                                }
-                                updateGroupSelectUI(target)
-                                renderQuickList()
-                                modal.remove()
+                                })
                             })
-                        })
                     }
                 }
 
@@ -1375,13 +1535,17 @@ export class AddPage {
                 document.body.appendChild(modal)
                 renderModalContent()
 
-                modal.querySelector('#close-modal-btn')?.addEventListener('click', () => modal.remove())
+                modal
+                    .querySelector('#close-modal-btn')
+                    ?.addEventListener('click', () => modal.remove())
                 modal.addEventListener('click', e => {
                     if (e.target === modal) modal.remove()
                 })
-                modal.querySelector('#modal-group-search-input')?.addEventListener('input', e => {
-                    renderModalContent(e.target.value)
-                })
+                modal
+                    .querySelector('#modal-group-search-input')
+                    ?.addEventListener('input', e => {
+                        renderModalContent(e.target.value)
+                    })
             }
 
             // 註：原搜尋欄「清單」小按鈕已移除；全量細選改由清單底部「查看全部 N 筆」進入
@@ -1729,7 +1893,9 @@ export class AddPage {
                           currentDate,
                           instFrequency,
                           1,
-                          currentDate ? parseInt(currentDate.split('-')[2], 10) : null
+                          currentDate
+                              ? parseInt(currentDate.split('-')[2], 10)
+                              : null
                       )
                     : currentDate,
                 status: 'active',
@@ -1772,23 +1938,23 @@ export class AddPage {
                 groupId: groupCleared
                     ? null
                     : groupEnabled
-                    ? selectedGroupId || null
-                    : isEditMode
-                    ? recordToEdit?.groupId ?? null
-                    : null,
+                      ? selectedGroupId || null
+                      : isEditMode
+                        ? (recordToEdit?.groupId ?? null)
+                        : null,
                 // groupStatus: 取消關聯 → null；啟用面板 → 依是否開啟欠款標記為
                 // active(分帳欠款) 或 project(純專案消費)；未開啟 → 保留原始值
                 groupStatus: groupCleared
                     ? null
                     : groupEnabled
-                    ? selectedGroupId
-                        ? debtEnabled && debtContactId
-                            ? 'active'
-                            : 'project'
-                        : null
-                    : isEditMode
-                    ? recordToEdit?.groupStatus ?? null
-                    : null,
+                      ? selectedGroupId
+                          ? debtEnabled && debtContactId
+                              ? 'active'
+                              : 'project'
+                          : null
+                      : isEditMode
+                        ? (recordToEdit?.groupStatus ?? null)
+                        : null,
             }
 
             if (isEditMode) {
@@ -2110,10 +2276,12 @@ export class AddPage {
                         }
 
                         // Bind view associated debt button
-                        document.getElementById('view-associated-debt-btn')?.addEventListener('click', (e) => {
-                            e.preventDefault();
-                            window.location.hash = `#debts?debtId=${debt.id}`;
-                        });
+                        document
+                            .getElementById('view-associated-debt-btn')
+                            ?.addEventListener('click', e => {
+                                e.preventDefault()
+                                window.location.hash = `#debts?debtId=${debt.id}`
+                            })
 
                         // Bind debt type edit buttons
                         document
@@ -2257,7 +2425,9 @@ export class AddPage {
                                 ))
                             )
                                 return
-                            await this.app.dataService.deleteAmortization(amort.id)
+                            await this.app.dataService.deleteAmortization(
+                                amort.id
+                            )
                             await this.app.dataService.updateRecord(
                                 numericRecordId,
                                 { amortizationId: null }
@@ -2387,14 +2557,32 @@ export class AddPage {
 
         expenseBtn.addEventListener('click', () => {
             if (!isEditMode) {
-                currentType = 'expense'
-                updateTypeUI()
+                if (currentType !== 'expense') {
+                    currentType = 'expense'
+                    // 切換至支出模式時，若目前分類非有效支出分類（如從收入切換過來），預設為「飲食」(food)
+                    const isExpenseCategory = this.app.categoryManager
+                        ?.getAllCategories?.('expense', true)
+                        ?.some(c => c.id === selectedCategory)
+                    if (!isExpenseCategory) {
+                        selectedCategory = getDefaultExpenseCategory()
+                    }
+                    updateTypeUI()
+                }
             }
         })
         incomeBtn.addEventListener('click', () => {
             if (!isEditMode) {
-                currentType = 'income'
-                updateTypeUI()
+                if (currentType !== 'income') {
+                    currentType = 'income'
+                    // 切換至收入模式時，不套用支出分類，維持無預設分類之既有行為
+                    const isIncomeCategory = this.app.categoryManager
+                        ?.getAllCategories?.('income', true)
+                        ?.some(c => c.id === selectedCategory)
+                    if (!isIncomeCategory) {
+                        selectedCategory = null
+                    }
+                    updateTypeUI()
+                }
             }
         })
 
@@ -2464,13 +2652,32 @@ export class AddPage {
                 getNoteInput: () => noteInput,
                 getDateInput: () => document.getElementById('add-date-input'),
                 getDateDisplay: () => document.getElementById('date-display'),
-                setSelectedCategory: (catId) => { selectedCategory = catId },
-                setSelectedAccount: (accId) => { selectedAccountId = accId },
-                setCurrentType: (type) => { currentType = type },
-                setCurrentAmount: (amt) => { currentAmount = amt }
+                setSelectedCategory: catId => {
+                    selectedCategory = catId
+                },
+                setSelectedAccount: accId => {
+                    selectedAccountId = accId
+                },
+                setCurrentType: type => {
+                    currentType = type
+                    if (currentType === 'income') {
+                        const isIncomeCategory = this.app.categoryManager
+                            ?.getAllCategories?.('income', true)
+                            ?.some(c => c.id === selectedCategory)
+                        if (!isIncomeCategory) selectedCategory = null
+                    } else if (currentType === 'expense') {
+                        const isExpenseCategory = this.app.categoryManager
+                            ?.getAllCategories?.('expense', true)
+                            ?.some(c => c.id === selectedCategory)
+                        if (!isExpenseCategory)
+                            selectedCategory = getDefaultExpenseCategory()
+                    }
+                },
+                setCurrentAmount: amt => {
+                    currentAmount = amt
+                },
             })
         }
-
 
         // 監聽底部導覽列按鈕：僅當使用者「已在全新記帳新增頁面」且非編輯模式時，點擊底部麥克風按鈕觸發語音 Modal
         const navAddBtn = document.querySelector('a[data-page="add"]')
@@ -2478,11 +2685,18 @@ export class AddPage {
             if (isEditMode) {
                 navAddBtn.onclick = null
             } else {
-                navAddBtn.onclick = (e) => {
+                navAddBtn.onclick = e => {
                     const currentHash = window.location.hash || '#home'
                     const isEditUrl = currentHash.includes('editRecordId=')
-                    const isAddPage = (currentHash === '#add' || currentHash.startsWith('#add')) && !isEditUrl
-                    if (isAddPage && this.aiService && this.aiService.isExperimentalEnabled()) {
+                    const isAddPage =
+                        (currentHash === '#add' ||
+                            currentHash.startsWith('#add')) &&
+                        !isEditUrl
+                    if (
+                        isAddPage &&
+                        this.aiService &&
+                        this.aiService.isExperimentalEnabled()
+                    ) {
                         e.preventDefault()
                         openGeminiModal()
                     }
@@ -2547,12 +2761,13 @@ export class AddPage {
         setSelectedCategory,
         setSelectedAccount,
         setCurrentType,
-        setCurrentAmount
+        setCurrentAmount,
     }) {
         const aiService = this.aiService || this.app.aiService
         const modal = document.createElement('div')
         modal.id = 'gemini-voice-modal'
-        modal.className = 'fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in'
+        modal.className =
+            'fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in'
 
         modal.innerHTML = `
             <div class="gemini-rainbow-glow-container max-w-md w-full shadow-2xl">
@@ -2644,7 +2859,7 @@ export class AddPage {
             // 4. 無重疊時的自然拼接：若皆為中文則直接相連，否則加空格
             const isS1Chinese = /[\u4e00-\u9fa5]$/.test(s1)
             const isS2Chinese = /^[\u4e00-\u9fa5]/.test(s2)
-            const separator = (isS1Chinese && isS2Chinese) ? '' : ' '
+            const separator = isS1Chinese && isS2Chinese ? '' : ' '
             return `${s1}${separator}${s2}`
         }
 
@@ -2655,7 +2870,11 @@ export class AddPage {
 
         const closeModal = () => {
             if (recognition && isRecording) {
-                try { recognition.stop() } catch (e) { /* ignore */ }
+                try {
+                    recognition.stop()
+                } catch (e) {
+                    /* ignore */
+                }
             }
             modal.remove()
         }
@@ -2675,15 +2894,22 @@ export class AddPage {
         }
 
         if (aiService && typeof aiService.checkForModelUpdate === 'function') {
-            aiService.checkForModelUpdate().then(res => {
-                if (res && res.hasUpdate && updateBanner) {
-                    updateBanner.classList.remove('hidden')
-                }
-            }).catch(() => {})
+            aiService
+                .checkForModelUpdate()
+                .then(res => {
+                    if (res && res.hasUpdate && updateBanner) {
+                        updateBanner.classList.remove('hidden')
+                    }
+                })
+                .catch(() => {})
         }
 
-        if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
-            const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition
+        if (
+            'SpeechRecognition' in window ||
+            'webkitSpeechRecognition' in window
+        ) {
+            const SpeechRec =
+                window.SpeechRecognition || window.webkitSpeechRecognition
             recognition = new SpeechRec()
             recognition.continuous = true
             recognition.interimResults = true
@@ -2692,22 +2918,30 @@ export class AddPage {
             recognition.onstart = () => {
                 isRecording = true
                 baseText = transcriptInput.value.trim()
-                micPulse.className = 'w-10 h-10 rounded-full bg-red-500 text-white flex items-center justify-center animate-pulse text-lg shadow-md shrink-0'
-                toggleMicBtn.className = 'size-12 rounded-2xl bg-red-500 text-white flex items-center justify-center text-lg hover:opacity-90 transition-opacity shrink-0'
+                micPulse.className =
+                    'w-10 h-10 rounded-full bg-red-500 text-white flex items-center justify-center animate-pulse text-lg shadow-md shrink-0'
+                toggleMicBtn.className =
+                    'size-12 rounded-2xl bg-red-500 text-white flex items-center justify-center text-lg hover:opacity-90 transition-opacity shrink-0'
                 toggleMicBtn.innerHTML = '<i class="fa-solid fa-stop"></i>'
-                statusHint.textContent = '正在聆聽您的口述內容（可直接點擊下方輸入框手動修改）...'
+                statusHint.textContent =
+                    '正在聆聽您的口述內容（可直接點擊下方輸入框手動修改）...'
             }
 
             recognition.onend = () => {
                 isRecording = false
                 baseText = transcriptInput.value.trim()
-                micPulse.className = 'w-10 h-10 rounded-full bg-wabi-primary text-wabi-surface flex items-center justify-center text-lg shadow-md shrink-0'
-                toggleMicBtn.className = 'size-12 rounded-2xl bg-wabi-primary/10 text-wabi-primary flex items-center justify-center text-lg hover:bg-wabi-primary/20 transition-colors shrink-0'
-                toggleMicBtn.innerHTML = '<i class="fa-solid fa-microphone"></i>'
+                micPulse.className =
+                    'w-10 h-10 rounded-full bg-wabi-primary text-wabi-surface flex items-center justify-center text-lg shadow-md shrink-0'
+                toggleMicBtn.className =
+                    'size-12 rounded-2xl bg-wabi-primary/10 text-wabi-primary flex items-center justify-center text-lg hover:bg-wabi-primary/20 transition-colors shrink-0'
+                toggleMicBtn.innerHTML =
+                    '<i class="fa-solid fa-microphone"></i>'
                 if (transcriptInput.value.trim()) {
-                    statusHint.textContent = '可手動編輯文字，點擊「AI 語意分析」開始自動填單'
+                    statusHint.textContent =
+                        '可手動編輯文字，點擊「AI 語意分析」開始自動填單'
                 } else {
-                    statusHint.textContent = '可直接在此手動輸入，或點擊麥克風開始錄音'
+                    statusHint.textContent =
+                        '可直接在此手動輸入，或點擊麥克風開始錄音'
                 }
             }
 
@@ -2722,7 +2956,10 @@ export class AddPage {
                 }
 
                 // 過濾連續出現的重複短語 (如 "便當便當" -> "便當")
-                speechText = speechText.replace(/(.{2,15}?)(?:\s*|,|，|\+)\1+/g, '$1')
+                speechText = speechText.replace(
+                    /(.{2,15}?)(?:\s*|,|，|\+)\1+/g,
+                    '$1'
+                )
 
                 // 智慧融合初始/手動基準文字與語音辨識文字
                 const fullDisplay = mergeOverlappingText(baseText, speechText)
@@ -2735,24 +2972,35 @@ export class AddPage {
 
             recognition.onerror = event => {
                 isRecording = false
-                micPulse.className = 'w-10 h-10 rounded-full bg-wabi-primary text-wabi-surface flex items-center justify-center text-lg shadow-md shrink-0'
-                toggleMicBtn.className = 'size-12 rounded-2xl bg-wabi-primary/10 text-wabi-primary flex items-center justify-center text-lg hover:bg-wabi-primary/20 transition-colors shrink-0'
-                toggleMicBtn.innerHTML = '<i class="fa-solid fa-microphone"></i>'
+                micPulse.className =
+                    'w-10 h-10 rounded-full bg-wabi-primary text-wabi-surface flex items-center justify-center text-lg shadow-md shrink-0'
+                toggleMicBtn.className =
+                    'size-12 rounded-2xl bg-wabi-primary/10 text-wabi-primary flex items-center justify-center text-lg hover:bg-wabi-primary/20 transition-colors shrink-0'
+                toggleMicBtn.innerHTML =
+                    '<i class="fa-solid fa-microphone"></i>'
 
                 if (event.error === 'network') {
-                    statusHint.textContent = '無法連線至語音辨識伺服器（請確認網路連線），您仍可在此手動輸入文字'
+                    statusHint.textContent =
+                        '無法連線至語音辨識伺服器（請確認網路連線），您仍可在此手動輸入文字'
                 } else if (event.error === 'not-allowed') {
-                    statusHint.textContent = '未取得麥克風存取權限，請授權後重試，或直接在此手動輸入'
+                    statusHint.textContent =
+                        '未取得麥克風存取權限，請授權後重試，或直接在此手動輸入'
                 } else if (event.error === 'no-speech') {
-                    statusHint.textContent = '未偵測到聲音，可點擊麥克風重試，或直接在此手動輸入'
+                    statusHint.textContent =
+                        '未偵測到聲音，可點擊麥克風重試，或直接在此手動輸入'
                 } else {
                     statusHint.textContent = `語音服務暫時無法使用 (${event.error})，您可直接在此手動輸入文字`
                 }
             }
 
-            try { recognition.start() } catch (e) { /* ignore */ }
+            try {
+                recognition.start()
+            } catch (e) {
+                /* ignore */
+            }
         } else {
-            statusHint.textContent = '您的瀏覽器不支援 Web Speech 語音輸入，請直接手動輸入'
+            statusHint.textContent =
+                '您的瀏覽器不支援 Web Speech 語音輸入，請直接手動輸入'
         }
 
         toggleMicBtn.addEventListener('click', () => {
@@ -2772,7 +3020,11 @@ export class AddPage {
             }
 
             if (recognition && isRecording) {
-                try { recognition.stop() } catch (e) { /* ignore */ }
+                try {
+                    recognition.stop()
+                } catch (e) {
+                    /* ignore */
+                }
             }
 
             const streamBox = modal.querySelector('#gemini-ai-stream-box')
@@ -2786,7 +3038,7 @@ export class AddPage {
             parseBtnText.textContent = 'AI 解析中...'
             statusHint.textContent = 'AI 正在分析金額、分類、帳戶與日期...'
 
-            const onTokenCallback = (piece) => {
+            const onTokenCallback = piece => {
                 if (streamText) {
                     const span = document.createElement('span')
                     span.className = 'animate-token-appear inline'
@@ -2806,29 +3058,68 @@ export class AddPage {
                 const accountNames = accounts.map(a => a.name)
 
                 // 收集全部分類並透過 Set 去除重複項目（如「其他」）
-                const allCatNames = Array.from(new Set([
-                    ...categoryManager.getAllCategories('expense'),
-                    ...categoryManager.getAllCategories('income')
-                ].map(c => c.name)))
+                const allCatNames = Array.from(
+                    new Set(
+                        [
+                            ...categoryManager.getAllCategories('expense'),
+                            ...categoryManager.getAllCategories('income'),
+                        ].map(c => c.name)
+                    )
+                )
 
                 // 首次推論：提供全部分類供模型參考 (含流式輸出)
-                let parsed = await aiService.parseRecord(text, allCatNames, accountNames, new Date(), onTokenCallback)
+                let parsed = await aiService.parseRecord(
+                    text,
+                    allCatNames,
+                    accountNames,
+                    new Date(),
+                    onTokenCallback
+                )
 
                 // 防呆機制：驗證收支類型與分類相符度
-                const recognizedType = parsed.type === 'income' ? 'income' : 'expense'
-                const targetCatNames = Array.from(new Set(categoryManager.getAllCategories(recognizedType).map(c => c.name)))
-                const oppositeType = recognizedType === 'income' ? 'expense' : 'income'
-                const oppositeCatNames = Array.from(new Set(categoryManager.getAllCategories(oppositeType).map(c => c.name)))
+                const recognizedType =
+                    parsed.type === 'income' ? 'income' : 'expense'
+                const targetCatNames = Array.from(
+                    new Set(
+                        categoryManager
+                            .getAllCategories(recognizedType)
+                            .map(c => c.name)
+                    )
+                )
+                const oppositeType =
+                    recognizedType === 'income' ? 'expense' : 'income'
+                const oppositeCatNames = Array.from(
+                    new Set(
+                        categoryManager
+                            .getAllCategories(oppositeType)
+                            .map(c => c.name)
+                    )
+                )
 
                 // 若生成的類別在目標收支類型中不存在，且明確屬於相反收支類型（排除兩邊皆有的分類如「其他」）或兩邊皆不存在：
-                const isOnlyInOpposite = oppositeCatNames.includes(parsed.category) && !targetCatNames.includes(parsed.category)
-                const isNotFoundAnywhere = !targetCatNames.includes(parsed.category) && !oppositeCatNames.includes(parsed.category)
+                const isOnlyInOpposite =
+                    oppositeCatNames.includes(parsed.category) &&
+                    !targetCatNames.includes(parsed.category)
+                const isNotFoundAnywhere =
+                    !targetCatNames.includes(parsed.category) &&
+                    !oppositeCatNames.includes(parsed.category)
 
-                if (parsed.category && (isOnlyInOpposite || isNotFoundAnywhere)) {
-                    console.warn(`[AI 防呆驗證] 分類 "${parsed.category}" 未能在 ${recognizedType} 分類中匹配，移除無關收支類型的分類重新執行 AI 解析...`)
+                if (
+                    parsed.category &&
+                    (isOnlyInOpposite || isNotFoundAnywhere)
+                ) {
+                    console.warn(
+                        `[AI 防呆驗證] 分類 "${parsed.category}" 未能在 ${recognizedType} 分類中匹配，移除無關收支類型的分類重新執行 AI 解析...`
+                    )
                     if (streamText) streamText.textContent = ''
                     // 移除無關收支類型的分類，只把目標收支類型的分類放進 System Prompt 重跑一次
-                    parsed = await aiService.parseRecord(text, targetCatNames, accountNames, new Date(), onTokenCallback)
+                    parsed = await aiService.parseRecord(
+                        text,
+                        targetCatNames,
+                        accountNames,
+                        new Date(),
+                        onTokenCallback
+                    )
                 }
 
                 // 1. 套用收支類型 (Income/Expense)
@@ -2842,7 +3133,9 @@ export class AddPage {
                     setCurrentAmount(parsed.amount.toString())
                     const amountDisplay = getAmountDisplay()
                     if (amountDisplay) {
-                        amountDisplay.textContent = formatCurrency(parsed.amount.toString())
+                        amountDisplay.textContent = formatCurrency(
+                            parsed.amount.toString()
+                        )
                     }
                 }
 
@@ -2858,36 +3151,51 @@ export class AddPage {
                     const dateDisplay = getDateDisplay()
                     if (dateInput) {
                         dateInput.value = parsed.date
-                        if (dateDisplay) dateDisplay.textContent = formatDate(parsed.date)
+                        if (dateDisplay)
+                            dateDisplay.textContent = formatDate(parsed.date)
                     }
                 }
 
                 // 5. 分類匹配：透過智慧模糊與生活同義詞匹配選定目標分類
                 if (parsed.category) {
-                    const currentTypeCats = categoryManager.getAllCategories(currentType)
-                    const matchedCat = fuzzyMatchCategory(parsed.category, currentTypeCats)
+                    const currentTypeCats =
+                        categoryManager.getAllCategories(currentType)
+                    const matchedCat = fuzzyMatchCategory(
+                        parsed.category,
+                        currentTypeCats
+                    )
                     if (matchedCat) {
                         setSelectedCategory(matchedCat.id)
                         updateSelectedCategoryUI(matchedCat)
                         renderCategories()
                     } else {
-                        console.warn(`[AI 防呆驗證] 分類 "${parsed.category}" 無法與現有分類匹配，保留預設分類`)
+                        console.warn(
+                            `[AI 防呆驗證] 分類 "${parsed.category}" 無法與現有分類匹配，保留預設分類`
+                        )
                     }
                 }
 
                 // 6. 帳戶匹配：透過智慧模糊與別名匹配選定已存在的帳戶 (支援大小寫/空白忽略、子字串包含、信用卡/銀行別名)
                 if (parsed.account && accounts.length > 0) {
-                    const matchedAcc = fuzzyMatchAccount(parsed.account, accounts)
+                    const matchedAcc = fuzzyMatchAccount(
+                        parsed.account,
+                        accounts
+                    )
                     if (matchedAcc) {
                         setSelectedAccount(matchedAcc.id)
                         updateAccountSelectorUI()
                     } else {
-                        console.warn(`[AI 防呆驗證] AI 解析之帳戶 "${parsed.account}" 無法在現有帳戶清單中匹配，保留預設帳戶`)
+                        console.warn(
+                            `[AI 防呆驗證] AI 解析之帳戶 "${parsed.account}" 無法在現有帳戶清單中匹配，保留預設帳戶`
+                        )
                     }
                 }
 
                 if (aiService.lastMode === 'rules') {
-                    showToast('AI 已用離線規則模式解析（模型未就緒），分類/日期可能不準', 'warning')
+                    showToast(
+                        'AI 已用離線規則模式解析（模型未就緒），分類/日期可能不準',
+                        'warning'
+                    )
                 } else {
                     showToast('AI 記帳解析成功！已自動填妥欄位。', 'success')
                 }
@@ -2959,32 +3267,40 @@ export class AddPage {
     }
 
     async showPaymentModal(debt, recordId, remainingAmount) {
-        const isReceivable = debt.type === 'receivable';
+        const isReceivable = debt.type === 'receivable'
 
-        const advancedModeSetting = await this.app.dataService.getSetting('advancedAccountModeEnabled');
-        const isAdvancedMode = !!advancedModeSetting?.value;
-        let accounts = [];
-        let defaultAccountId = null;
+        const advancedModeSetting = await this.app.dataService.getSetting(
+            'advancedAccountModeEnabled'
+        )
+        const isAdvancedMode = !!advancedModeSetting?.value
+        let accounts = []
+        let defaultAccountId = null
 
         if (isAdvancedMode) {
-            accounts = await this.app.dataService.getAccounts();
-            let preferredId = null;
+            accounts = await this.app.dataService.getAccounts()
+            let preferredId = null
             if (debt.recordId) {
-                const mainRecord = await this.app.dataService.getRecord(debt.recordId);
+                const mainRecord = await this.app.dataService.getRecord(
+                    debt.recordId
+                )
                 if (mainRecord && mainRecord.accountId) {
-                    preferredId = mainRecord.accountId;
+                    preferredId = mainRecord.accountId
                 }
             }
             // 還款無法入信用卡帳戶：信用卡轉導至其自動扣繳帳戶/現金
-            defaultAccountId = await this.app.dataService.resolveDefaultSettleAccountId(preferredId);
+            defaultAccountId =
+                await this.app.dataService.resolveDefaultSettleAccountId(
+                    preferredId
+                )
             if (!defaultAccountId && accounts.length > 0) {
-                defaultAccountId = accounts[0].id;
+                defaultAccountId = accounts[0].id
             }
         }
 
-        const modal = document.createElement('div');
-        modal.id = 'payment-modal';
-        modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4';
+        const modal = document.createElement('div')
+        modal.id = 'payment-modal'
+        modal.className =
+            'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4'
 
         modal.innerHTML = `
             <div class="bg-wabi-bg rounded-lg max-w-sm w-full p-6">
@@ -3001,14 +3317,18 @@ export class AddPage {
                            class="w-full p-3 bg-wabi-surface border border-wabi-border rounded-lg text-wabi-text-primary text-lg">
                 </div>
 
-                ${isAdvancedMode ? `
+                ${
+                    isAdvancedMode
+                        ? `
                 <div class="mb-4">
                     <label class="text-sm font-medium text-wabi-text-primary mb-2 block">${isReceivable ? '入帳' : '出帳'}帳戶</label>
                     <select id="payment-account-select" class="w-full p-3 bg-wabi-surface border border-wabi-border rounded-lg text-wabi-text-primary">
                         ${accounts.map(acc => `<option value="${acc.id}" ${acc.id === defaultAccountId ? 'selected' : ''}>${escapeHTML(acc.name)}</option>`).join('')}
                     </select>
                 </div>
-                ` : ''}
+                `
+                        : ''
+                }
 
                 <div class="flex gap-2 mb-4">
                     <button id="pay-full-btn" class="flex-1 py-2 text-sm font-medium text-wabi-primary border border-wabi-primary rounded-lg bg-wabi-primary/10">
@@ -3066,18 +3386,22 @@ export class AddPage {
                     return
                 }
 
-            const accountSelect = modal.querySelector('#payment-account-select');
-            const selectedAccountId = accountSelect ? parseInt(accountSelect.value) : null;
+                const accountSelect = modal.querySelector(
+                    '#payment-account-select'
+                )
+                const selectedAccountId = accountSelect
+                    ? parseInt(accountSelect.value)
+                    : null
 
-            await this.app.dataService.settleDebt(debt.id, amount, {
-                accountId: selectedAccountId,
-            });
-            closeModal();
-            showToast('還款成功！');
-            // Re-render
-            const params = new URLSearchParams();
-            if(recordId) params.append('id', recordId);
-            await this.render(params);
-        });
+                await this.app.dataService.settleDebt(debt.id, amount, {
+                    accountId: selectedAccountId,
+                })
+                closeModal()
+                showToast('還款成功！')
+                // Re-render
+                const params = new URLSearchParams()
+                if (recordId) params.append('id', recordId)
+                await this.render(params)
+            })
     }
 }

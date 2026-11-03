@@ -50,7 +50,11 @@
         "網頁程式",
         "輕鬆記帳"
     ],
-    "author": "ADT109119",
+    "author": "s96281",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/s96281/jijun.git"
+    },
     "license": "MIT",
     "webStoreUrl": "https://jijun.the-walking-fish.com"
 }

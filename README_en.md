@@ -136,7 +136,7 @@
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/ADT109119/jijun.git
+   git clone https://github.com/s96281/jijun.git
    cd jijun
    ```
 
@@ -222,7 +222,7 @@ npm run build && npx cap copy android
 
 ## 🤝 Contributing
 
-Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/ADT109119/jijun/issues).
+Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/s96281/jijun/issues).
 
 ## 📄 License
 

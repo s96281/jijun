@@ -7,10 +7,11 @@ export class SettingsPage {
     }
 
     async render() {
-        const isAndroidApk = typeof window !== 'undefined' && 
-                             window.Capacitor && 
-                             window.Capacitor.isNativePlatform?.() && 
-                             window.Capacitor.getPlatform?.() === 'android';
+        const isAndroidApk =
+            typeof window !== 'undefined' &&
+            window.Capacitor &&
+            window.Capacitor.isNativePlatform?.() &&
+            window.Capacitor.getPlatform?.() === 'android'
 
         this.app.appContainer.innerHTML = `
             <div class="page active max-w-3xl mx-auto">
@@ -77,7 +78,7 @@ export class SettingsPage {
                         ${this.createSettingItem('fa-solid fa-compass-drafting', '導覽教學', 'guide-tour-btn')}
                         ${this.createSettingItem('fa-solid fa-shield-halved', '隱私權政策', 'privacy-btn')}
                         ${this.createSettingItem('fa-solid fa-scale-balanced', '授權條款', 'license-btn')}
-                        <a id="github-repo-link" href="https://github.com/ADT109119/jijun" target="_blank" rel="noopener noreferrer" class="w-full flex items-center gap-4 bg-transparent px-4 min-h-14 justify-between hover:bg-wabi-bg/50">
+                        <a id="github-repo-link" href="https://github.com/s96281/jijun" target="_blank" rel="noopener noreferrer" class="w-full flex items-center gap-4 bg-transparent px-4 min-h-14 justify-between hover:bg-wabi-bg/50">
                             <div class="flex items-center gap-4">
                                 <div class="text-wabi-primary flex items-center justify-center rounded-lg bg-wabi-primary/10 shrink-0 size-10">
                                     <i class="fa-brands fa-github"></i>
@@ -306,15 +307,18 @@ export class SettingsPage {
             })
         }
         // Invoice Carrier setting button
-        const setInvoiceCarrierBtn = document.getElementById('set-invoice-carrier-btn')
+        const setInvoiceCarrierBtn = document.getElementById(
+            'set-invoice-carrier-btn'
+        )
         if (setInvoiceCarrierBtn) {
             setInvoiceCarrierBtn.addEventListener('click', () => {
-                const currentCarrier = localStorage.getItem('invoice_carrier_code') || ''
+                const currentCarrier =
+                    localStorage.getItem('invoice_carrier_code') || ''
                 this.showInputModal(
                     '設定發票載具',
                     '請輸入發票載具號碼 (例如: /ABC1234):',
                     currentCarrier,
-                    async (newCarrier) => {
+                    async newCarrier => {
                         const trimmed = newCarrier.trim()
                         if (trimmed && !trimmed.startsWith('/')) {
                             showToast('發票載具必須以 / 開頭！', 'error')
@@ -322,9 +326,14 @@ export class SettingsPage {
                         }
                         localStorage.setItem('invoice_carrier_code', trimmed)
                         showToast('發票載具設定成功！', 'success')
-                        
-                        const { updateAndroidWidget } = await import('../widgetHelper.js')
-                        updateAndroidWidget(this.app.dataService, this.app.budgetManager)
+
+                        const { updateAndroidWidget } = await import(
+                            '../widgetHelper.js'
+                        )
+                        updateAndroidWidget(
+                            this.app.dataService,
+                            this.app.budgetManager
+                        )
                     }
                 )
             })
@@ -398,25 +407,37 @@ export class SettingsPage {
                         '正在準備匯入...'
                     )
                     try {
-                        const result = await this.app.dataService.importData(file, {
-                            skipConfirm: true,
-                            onProgress: (percent, message) => {
-                                progressModal.update(percent, message)
-                            },
-                        })
+                        const result = await this.app.dataService.importData(
+                            file,
+                            {
+                                skipConfirm: true,
+                                onProgress: (percent, message) => {
+                                    progressModal.update(percent, message)
+                                },
+                            }
+                        )
                         if (result && result.success) {
                             progressModal.update(95, '正在重新載入資料...')
                             await this.app.reloadAppData()
                             progressModal.update(100, '資料匯入完成！')
                             setTimeout(() => {
                                 progressModal.close(() => {
-                                    showToast('資料已成功匯入！正在重整...', 'success')
-                                    setTimeout(() => window.location.reload(), 300)
+                                    showToast(
+                                        '資料已成功匯入！正在重整...',
+                                        'success'
+                                    )
+                                    setTimeout(
+                                        () => window.location.reload(),
+                                        300
+                                    )
                                 })
                             }, 500)
                         } else {
                             progressModal.close()
-                            showToast(result?.message || '資料匯入取消或失敗', 'error')
+                            showToast(
+                                result?.message || '資料匯入取消或失敗',
+                                'error'
+                            )
                         }
                     } catch (error) {
                         progressModal.close()
@@ -493,15 +514,17 @@ export class SettingsPage {
         }
 
         const versionInfo = document.getElementById('version-info')
-        if (versionInfo) {
+        if (versionInfo && this.app.changelogManager) {
             const latestVersion = this.app.changelogManager.getAllVersions()[0]
-            versionInfo.textContent = `版本 v${latestVersion.version}`
+            if (latestVersion) {
+                versionInfo.textContent = `版本 v${latestVersion.version}`
+            }
         }
 
         // GitHub Star 數量 (透過 GitHub API 動態取得)
         const starCount = document.getElementById('star-count')
         if (starCount) {
-            fetch('https://api.github.com/repos/ADT109119/jijun')
+            fetch('https://api.github.com/repos/s96281/jijun')
                 .then(res => res.json())
                 .then(data => {
                     starCount.textContent = data.stargazers_count || 0
@@ -686,15 +709,21 @@ export class SettingsPage {
             'debt-management-toggle'
         )
         if (debtManagementToggle) {
-            this.app.dataService.getSetting('debtManagementEnabled').then(setting => {
-                const isEnabled = setting ? !!setting.value : false;
-                debtManagementToggle.checked = isEnabled;
-                if (isEnabled) {
-                    document.getElementById('manage-debts-link-container')?.classList.remove('hidden');
-                } else {
-                    document.getElementById('manage-debts-link-container')?.classList.add('hidden');
-                }
-            });
+            this.app.dataService
+                .getSetting('debtManagementEnabled')
+                .then(setting => {
+                    const isEnabled = setting ? !!setting.value : false
+                    debtManagementToggle.checked = isEnabled
+                    if (isEnabled) {
+                        document
+                            .getElementById('manage-debts-link-container')
+                            ?.classList.remove('hidden')
+                    } else {
+                        document
+                            .getElementById('manage-debts-link-container')
+                            ?.classList.add('hidden')
+                    }
+                })
 
             debtManagementToggle.addEventListener('change', async e => {
                 const isEnabled = e.target.checked
@@ -703,16 +732,20 @@ export class SettingsPage {
                     value: isEnabled,
                 })
                 if (isEnabled) {
-                    document.getElementById('manage-debts-link-container')?.classList.remove('hidden');
+                    document
+                        .getElementById('manage-debts-link-container')
+                        ?.classList.remove('hidden')
                     // 第一次開啟欠款管理時立即顯示功能介紹
                     if (this.app.guideManager) {
                         this.app.guideManager.showToggleTour('debts')
                     }
                 } else {
-                    document.getElementById('manage-debts-link-container')?.classList.add('hidden');
+                    document
+                        .getElementById('manage-debts-link-container')
+                        ?.classList.add('hidden')
                 }
-                showToast(`欠款管理已${isEnabled ? '啟用' : '停用'}`);
-            });
+                showToast(`欠款管理已${isEnabled ? '啟用' : '停用'}`)
+            })
         }
 
         // Group Management Toggle
@@ -720,15 +753,21 @@ export class SettingsPage {
             'group-management-toggle'
         )
         if (groupManagementToggle) {
-            this.app.dataService.getSetting('groupManagementEnabled').then(setting => {
-                const isEnabled = setting ? !!setting.value : false;
-                groupManagementToggle.checked = isEnabled;
-                if (isEnabled) {
-                    document.getElementById('manage-groups-link-container')?.classList.remove('hidden');
-                } else {
-                    document.getElementById('manage-groups-link-container')?.classList.add('hidden');
-                }
-            });
+            this.app.dataService
+                .getSetting('groupManagementEnabled')
+                .then(setting => {
+                    const isEnabled = setting ? !!setting.value : false
+                    groupManagementToggle.checked = isEnabled
+                    if (isEnabled) {
+                        document
+                            .getElementById('manage-groups-link-container')
+                            ?.classList.remove('hidden')
+                    } else {
+                        document
+                            .getElementById('manage-groups-link-container')
+                            ?.classList.add('hidden')
+                    }
+                })
 
             groupManagementToggle.addEventListener('change', async e => {
                 const isEnabled = e.target.checked
@@ -737,20 +776,26 @@ export class SettingsPage {
                     value: isEnabled,
                 })
                 if (isEnabled) {
-                    document.getElementById('manage-groups-link-container')?.classList.remove('hidden');
+                    document
+                        .getElementById('manage-groups-link-container')
+                        ?.classList.remove('hidden')
                     // 第一次開啟群組功能時立即顯示功能介紹
                     if (this.app.guideManager) {
                         this.app.guideManager.showToggleTour('groups')
                     }
                 } else {
-                    document.getElementById('manage-groups-link-container')?.classList.add('hidden');
+                    document
+                        .getElementById('manage-groups-link-container')
+                        ?.classList.add('hidden')
                 }
-                showToast(`群組功能已${isEnabled ? '啟用' : '停用'}`);
-            });
+                showToast(`群組功能已${isEnabled ? '啟用' : '停用'}`)
+            })
         }
 
         // AI Experimental Feature Toggle & Model Select Button
-        const aiExperimentalToggle = document.getElementById('ai-experimental-toggle')
+        const aiExperimentalToggle = document.getElementById(
+            'ai-experimental-toggle'
+        )
         const aiModelSelectBtn = document.getElementById('ai-model-select-btn')
         const aiModelBadgeText = document.getElementById('ai-model-badge-text')
         const aiModelUpdateTag = document.getElementById('ai-model-update-tag')
@@ -763,11 +808,14 @@ export class SettingsPage {
         if (this.app.aiService.hasModelUpdate() && aiModelUpdateTag) {
             aiModelUpdateTag.classList.remove('hidden')
         } else if (this.app.aiService.isModelDownloaded()) {
-            this.app.aiService.checkForModelUpdate().then(res => {
-                if (res && res.hasUpdate && aiModelUpdateTag) {
-                    aiModelUpdateTag.classList.remove('hidden')
-                }
-            }).catch(() => {})
+            this.app.aiService
+                .checkForModelUpdate()
+                .then(res => {
+                    if (res && res.hasUpdate && aiModelUpdateTag) {
+                        aiModelUpdateTag.classList.remove('hidden')
+                    }
+                })
+                .catch(() => {})
         }
 
         if (aiModelSelectBtn) {
@@ -785,7 +833,8 @@ export class SettingsPage {
                 if (wantEnable) {
                     if (this.app.aiService.isModelDownloaded()) {
                         this.app.aiService.setExperimentalEnabled(true)
-                        if (this.app.updateNavAddIcon) this.app.updateNavAddIcon()
+                        if (this.app.updateNavAddIcon)
+                            this.app.updateNavAddIcon()
                         // 第一次開啟 AI 語音記帳時立即顯示功能介紹
                         if (this.app.guideManager) {
                             this.app.guideManager.showToggleTour('ai')
@@ -806,7 +855,8 @@ export class SettingsPage {
 
                     if (shouldDeleteModel) {
                         await this.app.aiService.deleteModel()
-                        if (aiModelUpdateTag) aiModelUpdateTag.classList.add('hidden')
+                        if (aiModelUpdateTag)
+                            aiModelUpdateTag.classList.add('hidden')
                         showToast('已關閉 AI 助手並刪除離線模型檔案', 'info')
                     } else {
                         showToast('已關閉 AI 助手（保留離線模型檔）', 'info')
@@ -1102,7 +1152,8 @@ export class SettingsPage {
                 showToast('強制更新中...')
                 try {
                     if ('serviceWorker' in navigator) {
-                        const registrations = await navigator.serviceWorker.getRegistrations()
+                        const registrations =
+                            await navigator.serviceWorker.getRegistrations()
                         for (const registration of registrations) {
                             await registration.unregister()
                         }
@@ -1307,7 +1358,7 @@ export class SettingsPage {
 
         const getQuantBadge = quant => {
             const downloaded = aiService.isModelDownloaded(quant)
-            const isActive = (quant === activeQuant)
+            const isActive = quant === activeQuant
             if (isActive) {
                 return '<span class="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 rounded-md flex items-center gap-1"><i class="fa-solid fa-circle-check text-[10px]"></i> 使用中</span>'
             }
@@ -1318,7 +1369,8 @@ export class SettingsPage {
         }
 
         const modal = document.createElement('div')
-        modal.className = 'fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in'
+        modal.className =
+            'fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in'
         modal.innerHTML = `
             <div class="bg-wabi-surface rounded-3xl p-6 max-w-md w-full border border-wabi-border shadow-2xl space-y-5 relative animate-modal-pop">
                 <div class="flex items-center justify-between border-b border-wabi-border/60 pb-3">
@@ -1327,7 +1379,7 @@ export class SettingsPage {
                             <i class="fa-solid fa-microchip"></i>
                         </div>
                         <div>
-                            <h3 class="text-lg font-bold text-wabi-text-primary">${hasUpdate ? '更新 AI 離線記帳模型' : (isCurrentDownloaded ? '管理 AI 離線模型' : '下載 AI 離線記帳模型')}</h3>
+                            <h3 class="text-lg font-bold text-wabi-text-primary">${hasUpdate ? '更新 AI 離線記帳模型' : isCurrentDownloaded ? '管理 AI 離線模型' : '下載 AI 離線記帳模型'}</h3>
                             <p class="text-xs text-wabi-text-secondary">使用端側輕量化 LLM，無須連網保障隱私</p>
                         </div>
                     </div>
@@ -1336,12 +1388,16 @@ export class SettingsPage {
                     </button>
                 </div>
 
-                ${hasUpdate ? `
+                ${
+                    hasUpdate
+                        ? `
                     <div class="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs text-amber-700 dark:text-amber-300 flex items-center gap-2">
                         <i class="fa-solid fa-cloud-arrow-down text-amber-500 text-sm shrink-0"></i>
                         <div>發現新版本模型！點擊下方按鈕即可重新下載並更新至最新版。</div>
                     </div>
-                ` : ''}
+                `
+                        : ''
+                }
 
                 <div class="text-sm text-wabi-text-primary space-y-2">
                     <p>開啟此功能需下載離線 AI 模型檔至您的裝置中。請選擇適合您的量化版本：</p>
@@ -1422,7 +1478,9 @@ export class SettingsPage {
         const cancelBtn = modal.querySelector('#cancel-ai-download-btn')
         const closeXBtn = modal.querySelector('#close-ai-download-modal-btn')
         const startBtn = modal.querySelector('#start-ai-download-btn')
-        const reDownloadContainer = modal.querySelector('#re-download-container')
+        const reDownloadContainer = modal.querySelector(
+            '#re-download-container'
+        )
         const reDownloadBtn = modal.querySelector('#re-download-btn')
         const progressBox = modal.querySelector('#ai-download-progress-box')
         const percentText = modal.querySelector('#ai-download-percent-text')
@@ -1431,7 +1489,7 @@ export class SettingsPage {
         const quantOptions = modal.querySelector('#quant-options')
 
         const refreshQuantBadges = () => {
-            ['q4_0', 'q8_0', 'fp16'].forEach(q => {
+            ;['q4_0', 'q8_0', 'fp16'].forEach(q => {
                 const el = modal.querySelector(`#badge-${q}`)
                 if (el) el.innerHTML = getQuantBadge(q)
             })
@@ -1440,30 +1498,42 @@ export class SettingsPage {
         const updateBtnState = selectedQuant => {
             const downloaded = aiService.isModelDownloaded(selectedQuant)
             const modelUpdate = aiService.hasModelUpdate(selectedQuant)
-            const isActive = (selectedQuant === activeQuant)
+            const isActive = selectedQuant === activeQuant
 
             if (modelUpdate) {
                 startBtn.disabled = false
-                startBtn.className = 'flex-1 py-2.5 rounded-xl bg-amber-500 text-white font-bold text-sm hover:bg-amber-600 transition-all cursor-pointer shadow-md'
-                startBtn.innerHTML = '<i class="fa-solid fa-cloud-arrow-down mr-1"></i> 下載更新模型'
-                if (reDownloadContainer) reDownloadContainer.classList.add('hidden')
+                startBtn.className =
+                    'flex-1 py-2.5 rounded-xl bg-amber-500 text-white font-bold text-sm hover:bg-amber-600 transition-all cursor-pointer shadow-md'
+                startBtn.innerHTML =
+                    '<i class="fa-solid fa-cloud-arrow-down mr-1"></i> 下載更新模型'
+                if (reDownloadContainer)
+                    reDownloadContainer.classList.add('hidden')
             } else if (!downloaded) {
                 startBtn.disabled = false
-                startBtn.className = 'flex-1 py-2.5 rounded-xl bg-wabi-primary text-wabi-surface font-bold text-sm hover:opacity-90 transition-all cursor-pointer shadow-md'
-                startBtn.innerHTML = '<i class="fa-solid fa-download mr-1"></i> 開始下載'
-                if (reDownloadContainer) reDownloadContainer.classList.add('hidden')
+                startBtn.className =
+                    'flex-1 py-2.5 rounded-xl bg-wabi-primary text-wabi-surface font-bold text-sm hover:opacity-90 transition-all cursor-pointer shadow-md'
+                startBtn.innerHTML =
+                    '<i class="fa-solid fa-download mr-1"></i> 開始下載'
+                if (reDownloadContainer)
+                    reDownloadContainer.classList.add('hidden')
             } else if (isActive) {
                 // 已下載 且 目前作用中 (無法重複切換 -> disabled、變淡、打勾標示)
                 startBtn.disabled = true
-                startBtn.className = 'flex-1 py-2.5 rounded-xl bg-wabi-primary/10 text-wabi-primary/50 font-bold text-sm cursor-not-allowed border border-wabi-primary/20 opacity-60 transition-all flex items-center justify-center gap-1.5'
-                startBtn.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-500 text-base"></i> 目前使用中'
-                if (reDownloadContainer) reDownloadContainer.classList.remove('hidden')
+                startBtn.className =
+                    'flex-1 py-2.5 rounded-xl bg-wabi-primary/10 text-wabi-primary/50 font-bold text-sm cursor-not-allowed border border-wabi-primary/20 opacity-60 transition-all flex items-center justify-center gap-1.5'
+                startBtn.innerHTML =
+                    '<i class="fa-solid fa-circle-check text-emerald-500 text-base"></i> 目前使用中'
+                if (reDownloadContainer)
+                    reDownloadContainer.classList.remove('hidden')
             } else {
                 // 已下載 且 非作用中 (可點擊切換)
                 startBtn.disabled = false
-                startBtn.className = 'flex-1 py-2.5 rounded-xl bg-wabi-primary text-wabi-surface font-bold text-sm hover:opacity-90 transition-all cursor-pointer shadow-md flex items-center justify-center gap-1.5'
-                startBtn.innerHTML = '<i class="fa-solid fa-right-left mr-1"></i> 切換使用此模型'
-                if (reDownloadContainer) reDownloadContainer.classList.remove('hidden')
+                startBtn.className =
+                    'flex-1 py-2.5 rounded-xl bg-wabi-primary text-wabi-surface font-bold text-sm hover:opacity-90 transition-all cursor-pointer shadow-md flex items-center justify-center gap-1.5'
+                startBtn.innerHTML =
+                    '<i class="fa-solid fa-right-left mr-1"></i> 切換使用此模型'
+                if (reDownloadContainer)
+                    reDownloadContainer.classList.remove('hidden')
             }
         }
 
@@ -1471,45 +1541,67 @@ export class SettingsPage {
 
         // 開啟彈窗時即時連線比對 Hash，若 Hugging Face 有新版本立即提示
         if (isCurrentDownloaded) {
-            aiService.checkForModelUpdate(activeQuant, { force: true }).then(res => {
-                if (res && res.hasUpdate) {
-                    const currentSelected = modal.querySelector('input[name="quant-choice"]:checked')?.value || activeQuant
-                    updateBtnState(currentSelected)
-                    const headerTitle = modal.querySelector('h3')
-                    if (headerTitle) headerTitle.textContent = '更新 AI 離線記帳模型'
-                    let updateNotice = modal.querySelector('#ai-update-notice-banner')
-                    if (!updateNotice) {
-                        updateNotice = document.createElement('div')
-                        updateNotice.id = 'ai-update-notice-banner'
-                        updateNotice.className = 'p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs text-amber-700 dark:text-amber-300 flex items-center gap-2'
-                        updateNotice.innerHTML = `
+            aiService
+                .checkForModelUpdate(activeQuant, { force: true })
+                .then(res => {
+                    if (res && res.hasUpdate) {
+                        const currentSelected =
+                            modal.querySelector(
+                                'input[name="quant-choice"]:checked'
+                            )?.value || activeQuant
+                        updateBtnState(currentSelected)
+                        const headerTitle = modal.querySelector('h3')
+                        if (headerTitle)
+                            headerTitle.textContent = '更新 AI 離線記帳模型'
+                        let updateNotice = modal.querySelector(
+                            '#ai-update-notice-banner'
+                        )
+                        if (!updateNotice) {
+                            updateNotice = document.createElement('div')
+                            updateNotice.id = 'ai-update-notice-banner'
+                            updateNotice.className =
+                                'p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs text-amber-700 dark:text-amber-300 flex items-center gap-2'
+                            updateNotice.innerHTML = `
                             <i class="fa-solid fa-cloud-arrow-down text-amber-500 text-sm shrink-0"></i>
                             <div>發現新版本模型！比對伺服器版本有更新，點擊下方按鈕即可重新下載並更新至最新版。</div>
                         `
-                        const quantDesc = modal.querySelector('.text-sm.text-wabi-text-primary')
-                        if (quantDesc && quantDesc.parentNode) {
-                            quantDesc.parentNode.insertBefore(updateNotice, quantDesc)
+                            const quantDesc = modal.querySelector(
+                                '.text-sm.text-wabi-text-primary'
+                            )
+                            if (quantDesc && quantDesc.parentNode) {
+                                quantDesc.parentNode.insertBefore(
+                                    updateNotice,
+                                    quantDesc
+                                )
+                            }
                         }
+                        const updateTagEl = document.getElementById(
+                            'ai-model-update-tag'
+                        )
+                        if (updateTagEl) updateTagEl.classList.remove('hidden')
                     }
-                    const updateTagEl = document.getElementById('ai-model-update-tag')
-                    if (updateTagEl) updateTagEl.classList.remove('hidden')
-                }
-            }).catch(() => {})
+                })
+                .catch(() => {})
         }
 
-        quantOptions.querySelectorAll('input[name="quant-choice"]').forEach(radio => {
-            radio.addEventListener('change', e => {
-                const selected = e.target.value
-                updateBtnState(selected)
-                if (aiService.isModelDownloaded(selected)) {
-                    aiService.checkForModelUpdate(selected, { force: true }).then(res => {
-                        if (res && res.hasUpdate) {
-                            updateBtnState(selected)
-                        }
-                    }).catch(() => {})
-                }
+        quantOptions
+            .querySelectorAll('input[name="quant-choice"]')
+            .forEach(radio => {
+                radio.addEventListener('change', e => {
+                    const selected = e.target.value
+                    updateBtnState(selected)
+                    if (aiService.isModelDownloaded(selected)) {
+                        aiService
+                            .checkForModelUpdate(selected, { force: true })
+                            .then(res => {
+                                if (res && res.hasUpdate) {
+                                    updateBtnState(selected)
+                                }
+                            })
+                            .catch(() => {})
+                    }
+                })
             })
-        })
 
         const closeModal = () => {
             const card = modal.querySelector('.animate-modal-pop')
@@ -1542,13 +1634,18 @@ export class SettingsPage {
             progressBox.classList.remove('hidden')
 
             try {
-                await aiService.downloadModel(selectedQuant, ({ loadedBytes, totalBytes, percent }) => {
-                    const loadedMB = (loadedBytes / (1024 * 1024)).toFixed(1)
-                    const totalMB = (totalBytes / (1024 * 1024)).toFixed(1)
-                    bar.style.width = `${percent}%`
-                    percentText.textContent = `${percent}%`
-                    sizeText.textContent = `${loadedMB} MB / ${totalMB} MB`
-                })
+                await aiService.downloadModel(
+                    selectedQuant,
+                    ({ loadedBytes, totalBytes, percent }) => {
+                        const loadedMB = (loadedBytes / (1024 * 1024)).toFixed(
+                            1
+                        )
+                        const totalMB = (totalBytes / (1024 * 1024)).toFixed(1)
+                        bar.style.width = `${percent}%`
+                        percentText.textContent = `${percent}%`
+                        sizeText.textContent = `${loadedMB} MB / ${totalMB} MB`
+                    }
+                )
 
                 aiService.setQuantization(selectedQuant)
                 activeQuant = selectedQuant
@@ -1556,22 +1653,29 @@ export class SettingsPage {
                 if (toggleElement) toggleElement.checked = true
                 if (this.app.updateNavAddIcon) this.app.updateNavAddIcon()
 
-                const badgeTextEl = document.getElementById('ai-model-badge-text')
-                const updateTagEl = document.getElementById('ai-model-update-tag')
-                if (badgeTextEl) badgeTextEl.textContent = selectedQuant.toUpperCase()
+                const badgeTextEl = document.getElementById(
+                    'ai-model-badge-text'
+                )
+                const updateTagEl = document.getElementById(
+                    'ai-model-update-tag'
+                )
+                if (badgeTextEl)
+                    badgeTextEl.textContent = selectedQuant.toUpperCase()
                 if (updateTagEl) updateTagEl.classList.add('hidden')
 
                 showToast('AI 離線記帳模型下載成功！已啟用 AI 功能', 'success')
                 modal.remove()
             } catch (err) {
-                console.error('模型下載失敗:', err);
+                console.error('模型下載失敗:', err)
                 showToast('模型下載失敗: ' + err.message, 'error')
                 closeModal()
             }
         }
 
         startBtn.addEventListener('click', async () => {
-            const selectedRadio = modal.querySelector('input[name="quant-choice"]:checked')
+            const selectedRadio = modal.querySelector(
+                'input[name="quant-choice"]:checked'
+            )
             const selectedQuant = selectedRadio ? selectedRadio.value : 'q4_0'
             const downloaded = aiService.isModelDownloaded(selectedQuant)
             const modelUpdate = aiService.hasModelUpdate(selectedQuant)
@@ -1589,12 +1693,20 @@ export class SettingsPage {
                 if (toggleElement) toggleElement.checked = true
                 if (this.app.updateNavAddIcon) this.app.updateNavAddIcon()
 
-                const badgeTextEl = document.getElementById('ai-model-badge-text')
-                const updateTagEl = document.getElementById('ai-model-update-tag')
-                if (badgeTextEl) badgeTextEl.textContent = selectedQuant.toUpperCase()
+                const badgeTextEl = document.getElementById(
+                    'ai-model-badge-text'
+                )
+                const updateTagEl = document.getElementById(
+                    'ai-model-update-tag'
+                )
+                if (badgeTextEl)
+                    badgeTextEl.textContent = selectedQuant.toUpperCase()
                 if (updateTagEl) updateTagEl.classList.add('hidden')
 
-                showToast(`已成功切換至 ${selectedQuant.toUpperCase()} AI 離線模型`, 'success')
+                showToast(
+                    `已成功切換至 ${selectedQuant.toUpperCase()} AI 離線模型`,
+                    'success'
+                )
 
                 // 短暫展示切換後打勾狀態再自動關閉視窗
                 setTimeout(() => {
@@ -1608,8 +1720,12 @@ export class SettingsPage {
 
         if (reDownloadBtn) {
             reDownloadBtn.addEventListener('click', async () => {
-                const selectedRadio = modal.querySelector('input[name="quant-choice"]:checked')
-                const selectedQuant = selectedRadio ? selectedRadio.value : 'q4_0'
+                const selectedRadio = modal.querySelector(
+                    'input[name="quant-choice"]:checked'
+                )
+                const selectedQuant = selectedRadio
+                    ? selectedRadio.value
+                    : 'q4_0'
                 await executeModelDownload(selectedQuant)
             })
         }

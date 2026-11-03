@@ -16,7 +16,7 @@ export class LicensePage {
                 
                 <div class="bg-wabi-surface rounded-xl shadow-sm border border-wabi-border p-6 mb-8 text-wabi-text-primary space-y-4">
                     <h2 class="text-lg font-bold text-wabi-primary">專案名稱：輕鬆記帳 2.0</h2>
-                    <p>版權所有 &copy; 2023-2025 ADT109119 (The walking fish 步行魚)</p>
+                    <p>版權所有 &copy; 2023-2026 s96281 / ADT109119 (The walking fish 步行魚)</p>
                     <hr class="border-wabi-border my-4">
                     
                     <h3 class="text-md font-bold text-wabi-primary">原始碼授權 (MIT License)</h3>
