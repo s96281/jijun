@@ -1,0 +1,1 @@
+(function(){System.register([`./main-legacy-D_Bzukk5.js`],function(e,t){var n,r;return{setters:[function(e){n=e.n,r=e.r}],execute:function(){e(`App`,n(`App`,{web:()=>r(()=>t.import(`./web-legacy-DKXAPWt0.js`).then(e=>new e.AppWeb),void 0)}))}}})})();
