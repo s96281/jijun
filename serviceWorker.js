@@ -1,7 +1,7 @@
 // 現代化 Service Worker（v2：precache + opaque cache-first）
 // 使用統一的版本號和 build hash 命名快取
-const APP_VERSION = '2.1.8.11' // build 時自動注入 package.json 的版本號
-const BUILD_HASH = '8d00a3da' // build 時自動注入（assets 清單的 hash；dev 模式固定 'dev'）
+const APP_VERSION = '2.1.8.12' // build 時自動注入 package.json 的版本號
+const BUILD_HASH = 'b2107571' // build 時自動注入（assets 清單的 hash；dev 模式固定 'dev'）
 
 // 快取命名帶 BUILD_HASH：新 build 的 SW 用新快取，舊快取在 activate 時清理
 const APP_CACHE = `app-v${APP_VERSION}-${BUILD_HASH}` // install 時的 precache（本機 assets + 核心 + CDN）
@@ -113,6 +113,12 @@ self.addEventListener('fetch', event => {
 
     // 跳過 Chrome 擴充功能和其他協議的請求
     if (!event.request.url.startsWith('http')) {
+        return
+    }
+
+    // GitHub Release API 必須即時取得最新版本，不能被 cache-first 策略保留舊回應。
+    if (new URL(event.request.url).hostname === 'api.github.com') {
+        event.respondWith(fetch(event.request))
         return
     }
 
