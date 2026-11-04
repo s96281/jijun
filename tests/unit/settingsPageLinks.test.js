@@ -158,7 +158,7 @@ describe('SettingsPage & Global Links - R2 專案倉庫與更新連結重新導�
 
 describe('GitHub Release 版本比較', () => {
     it('正確辨識 GitHub Release 的較新四段式版本', () => {
-        expect(isVersionNewer('v2.1.8.12', '2.1.8.11')).toBe(true)
+        expect(isVersionNewer('v2.1.8.13', '2.1.8.12')).toBe(true)
         expect(isVersionNewer('v2.1.8.10', '2.1.8.11')).toBe(false)
         expect(isVersionNewer('v2.1.8.11', '2.1.8.11')).toBe(false)
     })

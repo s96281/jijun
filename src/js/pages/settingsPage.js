@@ -122,22 +122,6 @@ export class SettingsPage {
                         <div id="version-info" class="px-4 py-3 text-xs text-center text-wabi-text-secondary"></div>
                     </div>
 
-                    <!-- Sponsor the Author -->
-                    <div class="bg-wabi-surface rounded-xl">
-                        <h3 class="text-wabi-primary text-base font-bold px-4 pb-2 pt-4">贊助作者</h3>
-                        <a href="https://buymeacoffee.com/thewalkingfish" target="_blank" rel="noopener noreferrer" class="w-full flex items-center gap-4 bg-transparent px-4 min-h-14 justify-between hover:bg-wabi-bg/50">
-                            <div class="flex items-center gap-4">
-                                <div class="text-wabi-primary flex items-center justify-center rounded-lg bg-wabi-primary/10 shrink-0 size-10">
-                                    <i class="fa-solid fa-mug-hot"></i>
-                                </div>
-                                <p class="text-wabi-text-primary text-base font-normal">Buy me a Coffee</p>
-                            </div>
-                            <div class="shrink-0 text-wabi-text-secondary">
-                                <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                            </div>
-                        </a>
-                    </div>
-
                     <!-- Advanced Features -->
                     <div class="bg-wabi-surface rounded-xl">
                         <h3 class="text-wabi-primary text-base font-bold px-4 pb-2 pt-4">實驗功能</h3>

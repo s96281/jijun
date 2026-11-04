@@ -1261,7 +1261,6 @@ export const FONT_AWESOME_ICONS = [
     'fa-solid fa-mountain',
     'fa-solid fa-mountain-city',
     'fa-solid fa-mountain-sun',
-    'fa-solid fa-mug-hot',
     'fa-solid fa-mug-saucer',
     'fa-solid fa-music',
     'fa-solid fa-n',
