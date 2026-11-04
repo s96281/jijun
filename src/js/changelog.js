@@ -1,5 +1,15 @@
 // 版本更新日誌模組
 export const CHANGELOG = {
+    '2.1.8.12': {
+        date: '2026-11-04',
+        title: 'GitHub Release 更新檢查',
+        features: [
+            '「檢查更新」現在會直接查詢 GitHub 最新正式 Release，並與目前 App 版本比對；Android APK 可正確顯示新版本通知。',
+        ],
+        bugfixes: [
+            'GitHub Release API 不再受 Service Worker cache-first 快取影響，避免取得過期版本資訊。',
+        ],
+    },
     '2.1.8.11': {
         date: '2026-11-04',
         title: 'Android 備份匯出穩定性修正',

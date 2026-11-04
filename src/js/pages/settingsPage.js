@@ -1,6 +1,31 @@
 import { showToast, customConfirm, showProgressModal } from '../utils.js'
 import { THEME_MODES } from '../themeManager.js'
 
+const GITHUB_LATEST_RELEASE_URL =
+    'https://api.github.com/repos/s96281/jijun/releases/latest'
+
+export function isVersionNewer(latestVersion, currentVersion) {
+    const parse = version => {
+        const normalized = String(version || '')
+            .trim()
+            .replace(/^v/i, '')
+            .split('-')[0]
+        if (!/^\d+(?:\.\d+)*$/.test(normalized)) return null
+        return normalized.split('.').map(Number)
+    }
+
+    const latest = parse(latestVersion)
+    const current = parse(currentVersion)
+    if (!latest || !current) return false
+
+    const length = Math.max(latest.length, current.length)
+    for (let i = 0; i < length; i++) {
+        const difference = (latest[i] || 0) - (current[i] || 0)
+        if (difference !== 0) return difference > 0
+    }
+    return false
+}
+
 export class SettingsPage {
     constructor(app) {
         this.app = app
@@ -1129,24 +1154,52 @@ export class SettingsPage {
     }
 
     async checkForUpdates() {
-        if (!('serviceWorker' in navigator)) {
-            showToast('瀏覽器不支援自動更新', 'warning')
-            return
-        }
-        const registration = await navigator.serviceWorker.getRegistration()
-        if (!registration) {
-            showToast('Service Worker 未註冊', 'error')
-            return
-        }
-
         showToast('正在檢查更新...')
-        await registration.update()
 
-        if (registration.waiting) {
-            this.showUpdateAvailable(registration)
-        } else {
-            showToast('已是最新版本！', 'success')
+        // Android APK 不會因 GitHub Release 建立而產生新的 Service Worker，
+        // 因此先直接比對 GitHub 最新正式 Release 的 tag 與目前 App 版本。
+        try {
+            const response = await fetch(GITHUB_LATEST_RELEASE_URL, {
+                headers: { Accept: 'application/vnd.github+json' },
+                cache: 'no-store',
+            })
+            if (!response.ok) {
+                throw new Error(`GitHub Release API 回應 ${response.status}`)
+            }
+            const release = await response.json()
+            const currentVersion =
+                typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'
+            if (isVersionNewer(release.tag_name, currentVersion)) {
+                this.showGitHubReleaseAvailable(release, currentVersion)
+                return
+            }
+        } catch (error) {
+            // 無網路、GitHub API 限流時仍繼續執行 PWA Service Worker 更新檢查。
+            console.warn('GitHub Release 更新檢查失敗:', error)
         }
+
+        if ('serviceWorker' in navigator) {
+            const registration = await navigator.serviceWorker.getRegistration()
+            if (registration) {
+                await registration.update()
+                if (registration.waiting) {
+                    this.showUpdateAvailable(registration)
+                    return
+                }
+            }
+        }
+
+        showToast('已是最新版本！', 'success')
+    }
+
+    showGitHubReleaseAvailable(release, currentVersion) {
+        const latestVersion = String(release.tag_name || '').replace(/^v/i, '')
+        this.showAlertModal(
+            '發現新版本！',
+            `目前版本 v${currentVersion}，GitHub Release 已發布 v${latestVersion}。請至 GitHub Release 下載並安裝最新版。`,
+            'fa-solid fa-circle-arrow-up',
+            'text-wabi-primary'
+        )
     }
 
     async forceUpdate() {

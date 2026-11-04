@@ -116,6 +116,12 @@ self.addEventListener('fetch', event => {
         return
     }
 
+    // GitHub Release API 必須即時取得最新版本，不能被 cache-first 策略保留舊回應。
+    if (new URL(event.request.url).hostname === 'api.github.com') {
+        event.respondWith(fetch(event.request))
+        return
+    }
+
     // 導覽請求（index.html / /）一律網路優先：
     // HTML 是入口，cache-first 會讓舊 SW 在更新後仍提供舊 index.html，
     // 載入舊 JS 開新版本 DB → VersionError → 資料「看似消失」的根因鏈之一。
