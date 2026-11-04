@@ -1,5 +1,13 @@
 // 版本更新日誌模組
 export const CHANGELOG = {
+    '2.1.8.9': {
+        date: '2026-11-04',
+        title: 'Android 匯出檔案位置選擇',
+        features: [
+            'Android App 匯出資料時，改由系統文件選擇器讓使用者指定檔案名稱與儲存位置。',
+            '使用 Storage Access Framework 取得使用者所選檔案的寫入授權，支援 Android 分區儲存規範，無須要求全域儲存空間權限。',
+        ],
+    },
     '2.1.8.8': {
         date: '2026-11-04',
         title: 'Android Release 簽名金鑰管理與覆蓋更新防護',

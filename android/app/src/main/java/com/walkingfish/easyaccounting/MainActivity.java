@@ -8,6 +8,7 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         setTheme(R.style.AppTheme_NoActionBar); // 強制在 super.onCreate 前切換回正式主題
         registerPlugin(WidgetStoragePlugin.class); // 必須在 super.onCreate 之前呼叫以註冊插件
+        registerPlugin(BackupExportPlugin.class); // Android 備份檔案儲存位置選擇器
         super.onCreate(savedInstanceState);
     }
 }

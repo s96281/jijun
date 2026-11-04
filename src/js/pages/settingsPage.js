@@ -1119,7 +1119,11 @@ export class SettingsPage {
                     closeModal()
                 } catch (error) {
                     console.error('匯出失敗:', error)
-                    showToast('資料匯出失敗', 'error')
+                    if (error?.code === 'USER_CANCELED') {
+                        showToast('已取消選擇儲存位置', 'info')
+                    } else {
+                        showToast('資料匯出失敗', 'error')
+                    }
                 }
             })
     }

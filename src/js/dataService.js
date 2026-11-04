@@ -1712,13 +1712,41 @@ class DataService {
                 },
             }
 
-            const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+            const json = JSON.stringify(exportData, null, 2)
+            const fileName = `記帳資料_${formatDateToString(new Date())}.json`
+
+            // Android 原生 App 透過 Storage Access Framework 讓使用者選擇檔案位置。
+            // 此流程由系統針對所選檔案授與寫入權限，不需要過時且範圍過大的儲存空間權限。
+            const isAndroidNative =
+                typeof window !== 'undefined' &&
+                window.Capacitor?.isNativePlatform?.() &&
+                window.Capacitor?.getPlatform?.() === 'android'
+            if (isAndroidNative) {
+                const { registerPlugin } = await import('@capacitor/core')
+                const BackupExport = registerPlugin('BackupExport')
+                const bytes = new TextEncoder().encode(json)
+                let binary = ''
+                const chunkSize = 0x8000
+                for (let i = 0; i < bytes.length; i += chunkSize) {
+                    binary += String.fromCharCode(
+                        ...bytes.subarray(i, i + chunkSize)
+                    )
+                }
+
+                await BackupExport.saveJson({
+                    fileName,
+                    data: btoa(binary),
+                })
+                return true
+            }
+
+            const blob = new Blob([json], {
                 type: 'application/json',
             })
             const url = URL.createObjectURL(blob)
             const a = document.createElement('a')
             a.href = url
-            a.download = `記帳資料_${formatDateToString(new Date())}.json`
+            a.download = fileName
             document.body.appendChild(a)
             a.click()
             document.body.removeChild(a)
