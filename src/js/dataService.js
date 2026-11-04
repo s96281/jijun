@@ -1725,18 +1725,39 @@ class DataService {
                 const { registerPlugin } = await import('@capacitor/core')
                 const BackupExport = registerPlugin('BackupExport')
                 const bytes = new TextEncoder().encode(json)
-                let binary = ''
-                const chunkSize = 0x8000
-                for (let i = 0; i < bytes.length; i += chunkSize) {
-                    binary += String.fromCharCode(
-                        ...bytes.subarray(i, i + chunkSize)
-                    )
-                }
-
-                await BackupExport.saveJson({
+                const { exportId } = await BackupExport.beginJsonExport({
                     fileName,
-                    data: btoa(binary),
                 })
+
+                try {
+                    // 將備份分段送往原生快取，避免大型 Base64 字串造成 WebView / Android
+                    // 主執行緒記憶體不足，並於使用者選定位置後由原生端串流寫入。
+                    const chunkSize = 0x8000
+                    for (let i = 0; i < bytes.length; i += chunkSize) {
+                        let binary = ''
+                        const chunk = bytes.subarray(i, i + chunkSize)
+                        for (let j = 0; j < chunk.length; j++) {
+                            binary += String.fromCharCode(chunk[j])
+                        }
+                        await BackupExport.appendJsonExportChunk({
+                            exportId,
+                            data: btoa(binary),
+                        })
+                    }
+
+                    await BackupExport.savePreparedJsonExport({
+                        exportId,
+                        fileName,
+                    })
+                } catch (error) {
+                    // 選擇儲存位置前發生錯誤時清除原生暫存檔；儲存流程本身會自行清除。
+                    try {
+                        await BackupExport.cancelPreparedJsonExport({ exportId })
+                    } catch (cleanupError) {
+                        console.warn('清除 Android 匯出暫存檔失敗:', cleanupError)
+                    }
+                    throw error
+                }
                 return true
             }
 
