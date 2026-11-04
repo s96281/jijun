@@ -4,6 +4,9 @@ import {
     AppUpdateService,
     selectApkAsset,
     formatBytes,
+    openExternalUrl,
+    getAppUpdatePlugin,
+    resetAppUpdatePlugin,
     GITHUB_LATEST_RELEASE_URL,
 } from '../../src/js/appUpdateService.js'
 
@@ -95,6 +98,7 @@ describe('AppUpdateService 核心服務', () => {
 
     beforeEach(() => {
         vi.restoreAllMocks()
+        resetAppUpdatePlugin()
         sessionStorage.clear()
         document.body.innerHTML = ''
 
@@ -272,5 +276,96 @@ describe('AppUpdateService 核心服務', () => {
 
         expect(mockPlugin.cancelDownload).toHaveBeenCalled()
         expect(document.getElementById('app-update-progress-modal')).toBeNull()
+    })
+
+    describe('openExternalUrl 與點擊互動防護', () => {
+        it('在非原生環境下使用 window.open 打開連結', async () => {
+            window.Capacitor = undefined
+            const openSpy = vi.spyOn(window, 'open').mockImplementation(() => {})
+
+            await openExternalUrl('https://example.com/test.apk')
+            expect(openSpy).toHaveBeenCalledWith('https://example.com/test.apk', '_blank')
+        })
+
+        it('在原生環境下若外掛具備 openInBrowser 優先呼叫原生瀏覽器', async () => {
+            const openInBrowserMock = vi.fn().mockResolvedValue()
+            window.Capacitor = {
+                isNativePlatform: () => true,
+                getPlatform: () => 'android',
+                Plugins: {
+                    AppUpdate: {
+                        openInBrowser: openInBrowserMock,
+                    },
+                },
+            }
+
+            await openExternalUrl('https://example.com/test.apk')
+            expect(openInBrowserMock).toHaveBeenCalledWith({ url: 'https://example.com/test.apk' })
+        })
+
+        it('點擊「立即更新」按鈕後立即變更為 loading 狀態並設置 disabled', async () => {
+            const release = {
+                tag_name: 'v2.1.8.14',
+                assets: [{ name: 'app-universal.apk', browser_download_url: 'https://example.com/app.apk' }],
+            }
+
+            // 保持 pending 讓按鈕狀態可被斷言
+            vi.spyOn(service, 'startUpdateProcess').mockImplementation(
+                () => new Promise(() => {})
+            )
+
+            service.showUpdatePromptModal(release, '2.1.8.13')
+            const confirmBtn = document.querySelector('#update-confirm-btn')
+            expect(confirmBtn.disabled).toBe(false)
+
+            confirmBtn.click()
+
+            expect(confirmBtn.disabled).toBe(true)
+            expect(confirmBtn.innerHTML).toContain('fa-circle-notch')
+            expect(confirmBtn.textContent).toContain('正在準備更新...')
+        })
+
+        it('若 startUpdateProcess 拋錯會恢復按鈕狀態', async () => {
+            const release = {
+                tag_name: 'v2.1.8.14',
+                assets: [],
+            }
+
+            vi.spyOn(service, 'startUpdateProcess').mockRejectedValue(new Error('Update failed'))
+
+            service.showUpdatePromptModal(release, '2.1.8.13')
+            const confirmBtn = document.querySelector('#update-confirm-btn')
+
+            await confirmBtn.click()
+
+            expect(confirmBtn.disabled).toBe(false)
+            expect(confirmBtn.textContent).toContain('立即更新')
+        })
+
+        it('原生環境下若外掛 getAppInfo 失敗會 fallback 至 openExternalUrl', async () => {
+            const openInBrowserMock = vi.fn().mockResolvedValue()
+            window.Capacitor = {
+                isNativePlatform: () => true,
+                getPlatform: () => 'android',
+                Plugins: {
+                    AppUpdate: {
+                        getAppInfo: vi.fn().mockRejectedValue(new Error('Plugin not implemented')),
+                        openInBrowser: openInBrowserMock,
+                    },
+                },
+            }
+
+            const release = {
+                tag_name: 'v2.1.8.14',
+                assets: [{ name: 'easy-accounting-app.apk', browser_download_url: 'https://example.com/apk' }],
+            }
+
+            const showProgressSpy = vi.spyOn(service, 'showDownloadProgressModal')
+
+            await service.startUpdateProcess(release, '2.1.8.14')
+
+            expect(showProgressSpy).not.toHaveBeenCalled()
+            expect(openInBrowserMock).toHaveBeenCalledWith({ url: 'https://example.com/apk' })
+        })
     })
 })

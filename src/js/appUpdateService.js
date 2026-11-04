@@ -1,5 +1,6 @@
 import { showToast, escapeHTML } from './utils.js'
 import { isVersionNewer } from './pages/settingsPage.js'
+import { registerPlugin } from '@capacitor/core'
 
 export const GITHUB_LATEST_RELEASE_URL =
     'https://api.github.com/repos/s96281/jijun/releases/latest'
@@ -54,22 +55,81 @@ export function formatBytes(bytes) {
 
 let AppUpdatePluginInstance = null
 
-export async function getAppUpdatePlugin() {
+/**
+ * 重設外掛快取實例 (主要供單元測試或熱更新重置狀態使用)
+ */
+export function resetAppUpdatePlugin() {
+    AppUpdatePluginInstance = null
+}
+
+/**
+ * 取得 AppUpdate 原生插件實例
+ * 優先使用全域 Capacitor Plugins，次選 registerPlugin 註冊代理
+ *
+ * @returns {Object|null}
+ */
+export function getAppUpdatePlugin() {
     if (AppUpdatePluginInstance) return AppUpdatePluginInstance
     const isNativeAndroid =
         typeof window !== 'undefined' &&
-        window.Capacitor?.isNativePlatform?.() &&
+        Boolean(window.Capacitor?.isNativePlatform?.()) &&
         window.Capacitor?.getPlatform?.() === 'android'
 
     if (!isNativeAndroid) return null
 
     try {
-        const { registerPlugin } = await import('@capacitor/core')
-        AppUpdatePluginInstance = registerPlugin('AppUpdate')
-        return AppUpdatePluginInstance
+        if (window.Capacitor?.Plugins?.AppUpdate) {
+            AppUpdatePluginInstance = window.Capacitor.Plugins.AppUpdate
+            return AppUpdatePluginInstance
+        }
+        if (typeof registerPlugin === 'function') {
+            AppUpdatePluginInstance = registerPlugin('AppUpdate')
+            return AppUpdatePluginInstance
+        }
+        if (typeof window.Capacitor?.registerPlugin === 'function') {
+            AppUpdatePluginInstance = window.Capacitor.registerPlugin('AppUpdate')
+            return AppUpdatePluginInstance
+        }
     } catch (e) {
-        console.warn('[AppUpdateService] 無法註冊 AppUpdate 插件:', e)
-        return null
+        console.warn('[AppUpdateService] 註冊 AppUpdate 插件失敗:', e)
+    }
+    return null
+}
+
+/**
+ * 安全地開啟外部下載連結或網頁
+ * 在 Android 原生環境下避免 window.open 被 WebView 靜默丟棄的問題，
+ * 優先呼叫原生 Intent 打開系統瀏覽器，次選以 location.href 觸發外部瀏覽器
+ *
+ * @param {string} url
+ */
+export async function openExternalUrl(url) {
+    if (!url) return
+    const isNativeAndroid =
+        typeof window !== 'undefined' &&
+        Boolean(window.Capacitor?.isNativePlatform?.()) &&
+        window.Capacitor?.getPlatform?.() === 'android'
+
+    if (isNativeAndroid) {
+        const plugin = getAppUpdatePlugin()
+        if (plugin && typeof plugin.openInBrowser === 'function') {
+            try {
+                await plugin.openInBrowser({ url })
+                return
+            } catch (e) {
+                console.warn('[AppUpdateService] plugin.openInBrowser 失敗，嘗試 window.location:', e)
+            }
+        }
+        try {
+            window.location.href = url
+            return
+        } catch (_) {}
+    }
+
+    try {
+        window.open(url, '_blank')
+    } catch (_) {
+        window.location.href = url
     }
 }
 
@@ -106,7 +166,6 @@ export class AppUpdateService {
         try {
             await this.checkForUpdates({ isStartup: true })
         } catch (error) {
-            // 啟動自動檢查失敗時靜默記錄日誌（如離線、弱網或 GitHub API 限流）
             console.warn('[AppUpdateService] 啟動自動檢查更新失敗 (靜默忽略):', error)
         }
     }
@@ -156,7 +215,7 @@ export class AppUpdateService {
                 ''
             )
 
-            // 若為啟動自動檢查，且使用者在當前工作階段已點選過「稍後提醒」，則不重複彈窗騷擾
+            // 若為啟動自動檢查，且使用者在當前工作階段已點選過「稍後提醒」，則不重複彈窗
             if (isStartup) {
                 const dismissedVersion = sessionStorage.getItem(
                     `dismissed_update_${latestVersion}`
@@ -245,7 +304,26 @@ ${cleanNotes}
 
         const confirmBtn = modal.querySelector('#update-confirm-btn')
         confirmBtn.addEventListener('click', async () => {
-            await this.startUpdateProcess(release, latestVersion)
+            if (confirmBtn.disabled) return
+            confirmBtn.disabled = true
+            confirmBtn.classList.add('opacity-80', 'cursor-not-allowed')
+            confirmBtn.innerHTML = `
+                <i class="fa-solid fa-circle-notch fa-spin"></i>
+                <span>正在準備更新...</span>
+            `
+
+            try {
+                await this.startUpdateProcess(release, latestVersion)
+            } catch (err) {
+                console.error('[AppUpdateService] 啟動更新失敗:', err)
+                showToast('啟動更新失敗：' + (err.message || '請稍後再試'), 'error')
+                confirmBtn.disabled = false
+                confirmBtn.classList.remove('opacity-80', 'cursor-not-allowed')
+                confirmBtn.innerHTML = `
+                    <i class="fa-solid fa-download"></i>
+                    <span>立即更新</span>
+                `
+            }
         })
     }
 
@@ -257,32 +335,39 @@ ${cleanNotes}
      */
     async startUpdateProcess(release, latestVersion) {
         const isNative = this.isAndroidNative()
-        const plugin = await getAppUpdatePlugin()
+        const plugin = getAppUpdatePlugin()
 
         let supportedAbis = []
-        if (plugin?.getAppInfo) {
+        let isPluginOperational = false
+
+        if (plugin) {
             try {
-                const info = await plugin.getAppInfo()
-                supportedAbis = info.supportedAbis || []
+                if (typeof plugin.getAppInfo === 'function') {
+                    const info = await plugin.getAppInfo()
+                    supportedAbis = info?.supportedAbis || []
+                    isPluginOperational = true
+                }
             } catch (e) {
-                console.warn('[AppUpdateService] 無法取得裝置架構:', e)
+                console.warn('[AppUpdateService] 原生外掛 getAppInfo 不可用 (可能為升級前舊版 APK):', e)
             }
         }
 
         const selectedAsset = selectApkAsset(release.assets, supportedAbis)
+        const targetUrl =
+            selectedAsset?.browser_download_url ||
+            release.html_url ||
+            GITHUB_LATEST_RELEASE_URL
 
-        // 若非 Android 原生或找不到 APK 資產，引導開啟瀏覽器下載
-        if (!isNative || !plugin || !selectedAsset) {
-            const targetUrl =
-                selectedAsset?.browser_download_url ||
-                release.html_url ||
-                GITHUB_LATEST_RELEASE_URL
-            window.open(targetUrl, '_blank')
+        // 若非 Android 原生環境、找不到資產，或原生插件未就緒（例如舊版升級上來）
+        // 自動使用系統瀏覽器打開 APK 下載網址，絕不卡死！
+        if (!isNative || !plugin || !isPluginOperational || !selectedAsset) {
+            showToast('正在開啟瀏覽器下載更新檔案...', 'info')
+            await openExternalUrl(targetUrl)
             this.closeActiveModal()
             return
         }
 
-        // 切換為下載進度彈窗
+        // 原生外掛可用：切換為在線下載進度彈窗
         this.showDownloadProgressModal(latestVersion, selectedAsset.browser_download_url, plugin)
     }
 
@@ -345,7 +430,9 @@ ${cleanNotes}
         cancelBtn?.addEventListener('click', async () => {
             isCancelled = true
             try {
-                await plugin.cancelDownload()
+                if (typeof plugin.cancelDownload === 'function') {
+                    await plugin.cancelDownload()
+                }
             } catch (_) {}
             this.closeActiveModal()
             showToast('已取消更新下載', 'info')
@@ -353,22 +440,26 @@ ${cleanNotes}
 
         // 監聽原生下載進度事件
         let progressListenerPromise = null
-        if (plugin.addListener) {
-            progressListenerPromise = plugin.addListener(
-                'downloadProgress',
-                progressData => {
-                    if (isCancelled) return
-                    const percent = progressData.progress >= 0 ? progressData.progress : 0
-                    progressBar.style.width = `${Math.min(100, Math.max(0, percent))}%`
-                    percentText.textContent = `${percent}%`
+        if (typeof plugin.addListener === 'function') {
+            try {
+                progressListenerPromise = plugin.addListener(
+                    'downloadProgress',
+                    progressData => {
+                        if (isCancelled || !progressData) return
+                        const percent = progressData.progress >= 0 ? progressData.progress : 0
+                        progressBar.style.width = `${Math.min(100, Math.max(0, percent))}%`
+                        percentText.textContent = `${percent}%`
 
-                    if (progressData.totalBytes > 0) {
-                        bytesText.textContent = `${formatBytes(progressData.downloadedBytes)} / ${formatBytes(progressData.totalBytes)}`
-                    } else if (progressData.downloadedBytes > 0) {
-                        bytesText.textContent = formatBytes(progressData.downloadedBytes)
+                        if (progressData.totalBytes > 0) {
+                            bytesText.textContent = `${formatBytes(progressData.downloadedBytes)} / ${formatBytes(progressData.totalBytes)}`
+                        } else if (progressData.downloadedBytes > 0) {
+                            bytesText.textContent = formatBytes(progressData.downloadedBytes)
+                        }
                     }
-                }
-            )
+                )
+            } catch (err) {
+                console.warn('[AppUpdateService] 註冊 downloadProgress 監聽器失敗:', err)
+            }
         }
 
         // 開始呼叫原生下載並執行安裝
@@ -391,7 +482,7 @@ ${cleanNotes}
 
                 // 檢查是否具有未知來源安裝權限
                 let canInstall = true
-                if (plugin.canRequestPackageInstalls) {
+                if (typeof plugin.canRequestPackageInstalls === 'function') {
                     try {
                         const perm = await plugin.canRequestPackageInstalls()
                         canInstall = Boolean(perm?.value)
@@ -414,13 +505,21 @@ ${cleanNotes}
                     actionContainer
                         .querySelector('#open-permission-btn')
                         ?.addEventListener('click', async () => {
-                            await plugin.openInstallPermissionSettings()
+                            try {
+                                await plugin.openInstallPermissionSettings()
+                            } catch (e) {
+                                showToast('無法開啟設定頁面: ' + e.message, 'error')
+                            }
                         })
                     actionContainer
                         .querySelector('#retry-install-btn')
                         ?.addEventListener('click', async () => {
                             if (result?.filePath) {
-                                await plugin.installApkFile({ filePath: result.filePath })
+                                try {
+                                    await plugin.installApkFile({ filePath: result.filePath })
+                                } catch (e) {
+                                    showToast('啟動安裝失敗: ' + e.message, 'error')
+                                }
                             }
                         })
                 } else {
@@ -440,7 +539,11 @@ ${cleanNotes}
                         .querySelector('#manual-trigger-install-btn')
                         ?.addEventListener('click', async () => {
                             if (result?.filePath) {
-                                await plugin.installApkFile({ filePath: result.filePath })
+                                try {
+                                    await plugin.installApkFile({ filePath: result.filePath })
+                                } catch (e) {
+                                    showToast('手動安裝失敗: ' + e.message, 'error')
+                                }
                             }
                         })
                     actionContainer
@@ -481,8 +584,8 @@ ${cleanNotes}
                     })
                 actionContainer
                     .querySelector('#browser-download-btn')
-                    ?.addEventListener('click', () => {
-                        window.open(downloadUrl, '_blank')
+                    ?.addEventListener('click', async () => {
+                        await openExternalUrl(downloadUrl)
                         this.closeActiveModal()
                     })
                 actionContainer

@@ -1,5 +1,15 @@
 // 版本更新日誌模組
 export const CHANGELOG = {
+    '2.1.8.16': {
+        date: '2026-11-05',
+        title: 'Android 更新下載與覆蓋安裝穩定性修復',
+        improvements: [
+            '修復 Android APP 偵測到更新後點擊「立即更新」按鈕無動作問題：在按鈕點擊時加入即時載入狀態 (Spinner) 與防連點保護，並包裹全域異常處理與 Toast 友善提示。',
+            '雙重外掛註冊與舊版本相容：自動檢測外掛實體與原生能力，若由舊版 APK 升級前原生外掛尚未就緒，自動平滑切換至系統瀏覽器下載最新 APK，徹底杜絕外掛未實作造成的操作中斷。',
+            '強化外部瀏覽器導向能力：原生端新增 openInBrowser 插件方法，徹底解決 Android WebView 預設靜默丟棄 window.open 的問題，確保任何環境下點擊下載皆能百分之百觸發。',
+            '下載與覆蓋安裝健全化：強化多層 HTTP 重定向 (GitHub Release -> CDN) 與無 Content-Length 容錯處理，覆蓋安裝 Intent 改於 UI 主執行緒安全調度。',
+        ],
+    },
     '2.1.8.15': {
         date: '2026-11-05',
         title: 'PostgreSQL 雲端備份與自訂帳號認證系統',

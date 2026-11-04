@@ -6,6 +6,8 @@ import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.Settings;
 import android.util.Log;
 
@@ -34,13 +36,15 @@ import java.util.concurrent.Executors;
  * 支援功能：
  * 1. 取得目前應用程式版本號、內部建置碼與裝置支援架構 (ABI)
  * 2. 檢查與導向「允許安裝未知應用程式」權限設定頁
- * 3. 背景執行緒串流下載 APK，支援 GitHub Release 重導向與即時進度廣播
+ * 3. 背景執行緒串流下載 APK，支援 GitHub Release 多層重導向與即時進度廣播
  * 4. 透過 FileProvider 呼叫系統 PackageInstaller 進行覆蓋安裝 (In-place Upgrade)
+ * 5. 支援由系統預設外部瀏覽器打開下載連結作為安全兜底
  */
 @CapacitorPlugin(name = "AppUpdate")
 public class AppUpdatePlugin extends Plugin {
     private static final String TAG = "AppUpdatePlugin";
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private volatile boolean isCancelled = false;
 
     @PluginMethod
@@ -104,6 +108,25 @@ public class AppUpdatePlugin extends Plugin {
             }
         } else {
             call.resolve();
+        }
+    }
+
+    @PluginMethod
+    public void openInBrowser(PluginCall call) {
+        String urlString = call.getString("url");
+        if (urlString == null || urlString.trim().isEmpty()) {
+            call.reject("缺少下載網址 (url)");
+            return;
+        }
+
+        try {
+            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(urlString));
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(intent);
+            call.resolve();
+        } catch (Exception e) {
+            Log.e(TAG, "啟動系統外部瀏覽器失敗: " + e.getMessage(), e);
+            call.reject("啟動系統外部瀏覽器失敗: " + e.getMessage(), e);
         }
     }
 
@@ -229,12 +252,20 @@ public class AppUpdatePlugin extends Plugin {
                     throw new IOException("下載的 APK 檔案大小為 0 位元組");
                 }
 
-                // 啟動覆蓋安裝程序
-                triggerInstall(apkFile);
+                final File finalApkFile = apkFile;
+                boolean installTriggered = false;
+                try {
+                    // 嘗試啟動系統 PackageInstaller 進行覆蓋安裝
+                    triggerInstall(finalApkFile);
+                    installTriggered = true;
+                } catch (Exception installError) {
+                    Log.w(TAG, "自動觸發覆蓋安裝失敗 (可能需使用者授予安裝權限): " + installError.getMessage());
+                }
 
                 JSObject result = new JSObject();
                 result.put("success", true);
-                result.put("filePath", apkFile.getAbsolutePath());
+                result.put("filePath", finalApkFile.getAbsolutePath());
+                result.put("installTriggered", installTriggered);
                 call.resolve(result);
             } catch (Exception e) {
                 Log.e(TAG, "更新下載或安裝失敗: " + e.getMessage(), e);
@@ -280,14 +311,20 @@ public class AppUpdatePlugin extends Plugin {
      * 呼叫系統 PackageInstaller 啟動 APK 覆蓋安裝
      */
     private void triggerInstall(File apkFile) {
-        Context context = getContext();
-        String authority = context.getPackageName() + ".fileprovider";
-        Uri apkUri = FileProvider.getUriForFile(context, authority, apkFile);
+        mainHandler.post(() -> {
+            try {
+                Context context = getContext();
+                String authority = context.getPackageName() + ".fileprovider";
+                Uri apkUri = FileProvider.getUriForFile(context, authority, apkFile);
 
-        Intent intent = new Intent(Intent.ACTION_VIEW);
-        intent.setDataAndType(apkUri, "application/vnd.android.package-archive");
-        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        context.startActivity(intent);
+                Intent intent = new Intent(Intent.ACTION_VIEW);
+                intent.setDataAndType(apkUri, "application/vnd.android.package-archive");
+                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                context.startActivity(intent);
+            } catch (Exception e) {
+                Log.e(TAG, "以主執行緒啟動安裝 Intent 失敗: " + e.getMessage(), e);
+            }
+        });
     }
 }
