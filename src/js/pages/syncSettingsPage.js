@@ -1,4 +1,10 @@
-import { showToast, customConfirm, closeModalWithAnimation, showProgressModal } from '../utils.js'
+import {
+    showToast,
+    customConfirm,
+    closeModalWithAnimation,
+    showProgressModal,
+    formatBytes,
+} from '../utils.js'
 
 export class SyncSettingsPage {
     constructor(app) {
@@ -10,6 +16,10 @@ export class SyncSettingsPage {
         const isSignedIn = this.app.syncService.isSignedIn()
         const userInfo = this.app.syncService.userInfo
         const serverUrl = this.app.syncService.getServerUrl()
+        const defaultServerUrl =
+            typeof this.app.syncService.getDefaultServerUrl === 'function'
+                ? this.app.syncService.getDefaultServerUrl()
+                : 'https://easy-accounting-sync.workers.cloudflare.henry-yo.top'
         const lastBackup =
             await this.app.dataService.getSetting('sync_last_backup')
         const lastSync = await this.app.dataService.getSetting('sync_last_sync')
@@ -23,6 +33,8 @@ export class SyncSettingsPage {
         )
         const backupIntervalValue = autoBackupInterval?.value || 'daily'
 
+        const cleanDomain = serverUrl.replace(/^https?:\/\//i, '').replace(/\/+$/, '')
+
         this.app.appContainer.innerHTML = `
             <div class="page active max-w-3xl mx-auto">
                 <div class="flex items-center p-4 pb-2 justify-between bg-wabi-bg sticky top-0 z-10">
@@ -33,27 +45,6 @@ export class SyncSettingsPage {
                     <div class="w-8"></div>
                 </div>
                 <div class="p-4 space-y-6 pb-24">
-
-                    <!-- Server Settings -->
-                    <div class="bg-wabi-surface rounded-xl p-4 space-y-3">
-                        <h3 class="text-wabi-primary text-base font-bold">伺服器設定</h3>
-                        <div class="space-y-2">
-                            <label class="text-sm text-wabi-text-secondary">同步伺服器 URL</label>
-                            <div class="flex flex-wrap gap-2">
-                                <input type="url" id="sync-server-url-input"
-                                    class="flex-1 min-w-0 px-3 py-2 rounded-lg border border-wabi-border bg-wabi-surface text-sm focus:ring-wabi-primary focus:border-wabi-primary"
-                                    value="${serverUrl}"
-                                    placeholder="https://jijun-server.the-walking-fish.com" />
-                                <button id="sync-server-save-btn" class="px-3 py-2 bg-wabi-primary text-wabi-surface rounded-lg text-sm font-medium hover:bg-wabi-primary/90 shrink-0">
-                                    儲存
-                                </button>
-                                <button id="sync-server-reset-btn" class="px-3 py-2 bg-wabi-bg text-wabi-text-secondary rounded-lg text-sm font-medium hover:bg-wabi-bg shrink-0" title="還原預設值">
-                                    <i class="fa-solid fa-rotate-left"></i>
-                                </button>
-                            </div>
-                            <p class="text-xs text-wabi-text-secondary">用於雲端備份與認證的伺服器地址</p>
-                        </div>
-                    </div>
 
                     <!-- Cloud Account -->
                     <div class="bg-wabi-surface rounded-xl p-4 space-y-3">
@@ -69,17 +60,17 @@ export class SyncSettingsPage {
                                 </div>
                                 <span class="text-xs px-2 py-1 bg-wabi-income/15 text-wabi-income border border-wabi-income/30 rounded-full font-medium">已連線</span>
                             </div>
-                            <button id="sync-sign-out-btn" class="w-full py-2 text-red-500 hover:text-red-600 text-sm font-medium border border-red-500/30 hover:border-red-500/50 hover:bg-red-500/10 rounded-lg transition-colors">
+                            <button id="sync-sign-out-btn" class="w-full py-2 text-red-500 hover:text-red-600 text-sm font-medium border border-red-500/30 hover:border-red-500/50 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer">
                                 <i class="fa-solid fa-right-from-bracket mr-1"></i> 登出雲端帳號
                             </button>
                         `
                                 : `
                             <div class="space-y-3">
                                 <div class="flex border-b border-wabi-border mb-3">
-                                    <button id="sync-tab-login" type="button" class="flex-1 pb-2 text-sm font-medium transition-colors ${this.authMode === 'login' ? 'text-wabi-primary border-b-2 border-wabi-primary' : 'text-wabi-text-secondary hover:text-wabi-primary'}">
+                                    <button id="sync-tab-login" type="button" class="flex-1 pb-2 text-sm font-medium transition-colors cursor-pointer ${this.authMode === 'login' ? 'text-wabi-primary border-b-2 border-wabi-primary' : 'text-wabi-text-secondary hover:text-wabi-primary'}">
                                         帳號登入
                                     </button>
-                                    <button id="sync-tab-register" type="button" class="flex-1 pb-2 text-sm font-medium transition-colors ${this.authMode === 'register' ? 'text-wabi-primary border-b-2 border-wabi-primary' : 'text-wabi-text-secondary hover:text-wabi-primary'}">
+                                    <button id="sync-tab-register" type="button" class="flex-1 pb-2 text-sm font-medium transition-colors cursor-pointer ${this.authMode === 'register' ? 'text-wabi-primary border-b-2 border-wabi-primary' : 'text-wabi-text-secondary hover:text-wabi-primary'}">
                                         註冊新帳號
                                     </button>
                                 </div>
@@ -103,7 +94,7 @@ export class SyncSettingsPage {
                                             : ''
                                     }
                                 </div>
-                                <button id="sync-sign-in-btn" class="w-full py-2.5 bg-wabi-bg hover:bg-wabi-surface border border-wabi-border hover:border-wabi-primary text-wabi-text-primary rounded-lg shadow-sm hover:shadow transition-all flex items-center justify-center gap-2">
+                                <button id="sync-sign-in-btn" class="w-full py-2.5 bg-wabi-bg hover:bg-wabi-surface border border-wabi-border hover:border-wabi-primary text-wabi-text-primary rounded-lg shadow-sm hover:shadow transition-all flex items-center justify-center gap-2 cursor-pointer">
                                     <i class="fa-solid ${this.authMode === 'register' ? 'fa-user-plus' : 'fa-right-to-bracket'} text-wabi-text-primary"></i>
                                     <span class="text-sm font-medium text-wabi-text-primary">${this.authMode === 'register' ? '建立帳號並登入' : '登入雲端帳號'}</span>
                                 </button>
@@ -118,15 +109,38 @@ export class SyncSettingsPage {
                             ? `
                     <!-- Backup -->
                     <div class="bg-wabi-surface rounded-xl p-4 space-y-3">
-                        <h3 class="text-wabi-primary text-base font-bold">雲端備份</h3>
-                        <p class="text-xs text-wabi-text-secondary">
-                            上次備份：${lastBackup?.value?.timestamp ? new Date(lastBackup.value.timestamp).toLocaleString('zh-TW') : '尚未備份'}
-                        </p>
-                        <div class="grid grid-cols-2 gap-3">
-                            <button id="sync-backup-btn" class="py-2.5 bg-wabi-primary text-wabi-surface rounded-lg text-sm font-medium hover:bg-wabi-primary/90 flex items-center justify-center gap-1">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-wabi-primary text-base font-bold">雲端備份</h3>
+                            <span class="text-xs px-2.5 py-0.5 rounded-full bg-wabi-primary/10 text-wabi-primary font-medium">全量備份</span>
+                        </div>
+                        
+                        <div class="p-3 bg-wabi-bg rounded-lg border border-wabi-border space-y-1.5">
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="text-wabi-text-secondary">上次全量備份</span>
+                                <span class="font-medium text-wabi-text-primary">
+                                    ${lastBackup?.value?.timestamp ? new Date(lastBackup.value.timestamp).toLocaleString('zh-TW') : '尚未備份'}
+                                </span>
+                            </div>
+                            ${
+                                lastBackup?.value?.sizeBytes !== undefined ||
+                                lastBackup?.value?.recordsCount !== undefined
+                                    ? `
+                            <div class="flex items-center justify-between text-xs pt-1.5 border-t border-wabi-border/60">
+                                <span class="text-wabi-text-secondary">已備份容量 / 筆數</span>
+                                <span class="font-semibold text-wabi-primary">
+                                    ${formatBytes(lastBackup.value.sizeBytes || 0)} · ${lastBackup.value.recordsCount ?? 0} 筆明細 (共 ${lastBackup.value.totalItems ?? lastBackup.value.recordsCount ?? 0} 筆資料)
+                                </span>
+                            </div>
+                            `
+                                    : ''
+                            }
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3 pt-1">
+                            <button id="sync-backup-btn" class="py-2.5 bg-wabi-primary text-wabi-surface rounded-lg text-sm font-medium hover:bg-wabi-primary/90 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm">
                                 <i class="fa-solid fa-cloud-arrow-up"></i> 立即備份
                             </button>
-                            <button id="sync-restore-btn" class="py-2.5 border border-wabi-primary text-wabi-primary rounded-lg text-sm font-medium hover:bg-wabi-primary/10 flex items-center justify-center gap-1">
+                            <button id="sync-restore-btn" class="py-2.5 border border-wabi-primary text-wabi-primary rounded-lg text-sm font-medium hover:bg-wabi-primary/10 flex items-center justify-center gap-1.5 cursor-pointer">
                                 <i class="fa-solid fa-cloud-arrow-down"></i> 還原備份
                             </button>
                         </div>
@@ -140,16 +154,16 @@ export class SyncSettingsPage {
                                 </div>
                                 <label class="relative inline-flex items-center cursor-pointer">
                                     <input type="checkbox" id="sync-auto-backup-toggle" class="sr-only peer" ${autoBackupEnabled?.value ? 'checked' : ''}>
-                                <div class="w-11 h-6 bg-wabi-bg border border-wabi-border rounded-full peer peer-focus:ring-4 peer-focus:ring-wabi-accent/30 peer-checked:bg-wabi-primary peer-checked:border-wabi-primary transition-colors"></div>
+                                    <div class="w-11 h-6 bg-wabi-bg border border-wabi-border rounded-full peer peer-focus:ring-4 peer-focus:ring-wabi-accent/30 peer-checked:bg-wabi-primary peer-checked:border-wabi-primary transition-colors"></div>
                                     <span class="absolute left-1 top-1 w-4 h-4 bg-wabi-surface rounded-full transition-transform peer-checked:translate-x-full"></span>
                                 </label>
                             </div>
                             <div id="auto-backup-interval-container" class="${autoBackupEnabled?.value ? '' : 'hidden'}">
                                 <label class="text-xs text-wabi-text-secondary mb-1 block">備份頻率</label>
                                 <div class="flex gap-2">
-                                    <button data-interval="daily" class="auto-backup-interval-btn flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${backupIntervalValue === 'daily' ? 'bg-wabi-primary text-wabi-surface border-wabi-primary' : 'bg-wabi-surface text-wabi-text-primary border-wabi-border hover:border-wabi-primary'}">每天</button>
-                                    <button data-interval="3days" class="auto-backup-interval-btn flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${backupIntervalValue === '3days' ? 'bg-wabi-primary text-wabi-surface border-wabi-primary' : 'bg-wabi-surface text-wabi-text-primary border-wabi-border hover:border-wabi-primary'}">每 3 天</button>
-                                    <button data-interval="weekly" class="auto-backup-interval-btn flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${backupIntervalValue === 'weekly' ? 'bg-wabi-primary text-wabi-surface border-wabi-primary' : 'bg-wabi-surface text-wabi-text-primary border-wabi-border hover:border-wabi-primary'}">每週</button>
+                                    <button data-interval="daily" class="auto-backup-interval-btn flex-1 py-2 rounded-lg text-sm font-medium border transition-colors cursor-pointer ${backupIntervalValue === 'daily' ? 'bg-wabi-primary text-wabi-surface border-wabi-primary' : 'bg-wabi-surface text-wabi-text-primary border-wabi-border hover:border-wabi-primary'}">每天</button>
+                                    <button data-interval="3days" class="auto-backup-interval-btn flex-1 py-2 rounded-lg text-sm font-medium border transition-colors cursor-pointer ${backupIntervalValue === '3days' ? 'bg-wabi-primary text-wabi-surface border-wabi-primary' : 'bg-wabi-surface text-wabi-text-primary border-wabi-border hover:border-wabi-primary'}">每 3 天</button>
+                                    <button data-interval="weekly" class="auto-backup-interval-btn flex-1 py-2 rounded-lg text-sm font-medium border transition-colors cursor-pointer ${backupIntervalValue === 'weekly' ? 'bg-wabi-primary text-wabi-surface border-wabi-primary' : 'bg-wabi-surface text-wabi-text-primary border-wabi-border hover:border-wabi-primary'}">每週</button>
                                 </div>
                             </div>
                             <p class="text-xs text-wabi-text-secondary">
@@ -175,7 +189,7 @@ export class SyncSettingsPage {
                                 <span class="absolute left-1 top-1 w-4 h-4 bg-wabi-surface rounded-full transition-transform peer-checked:translate-x-full"></span>
                             </label>
                         </div>
-                        <button id="sync-now-btn" class="w-full py-2.5 border border-wabi-border text-wabi-text-primary rounded-lg text-sm font-medium hover:bg-wabi-bg flex items-center justify-center gap-1">
+                        <button id="sync-now-btn" class="w-full py-2.5 border border-wabi-border text-wabi-text-primary rounded-lg text-sm font-medium hover:bg-wabi-bg flex items-center justify-center gap-1 cursor-pointer">
                             <i class="fa-solid fa-rotate"></i> 立即同步
                         </button>
                         <p class="text-xs text-wabi-text-secondary">
@@ -185,6 +199,40 @@ export class SyncSettingsPage {
                     `
                             : ''
                     }
+
+                    <!-- Server Settings (Collapsible, at bottom) -->
+                    <details id="sync-server-settings-details" class="group bg-wabi-surface rounded-xl border border-wabi-border/60 overflow-hidden transition-all">
+                        <summary class="flex items-center justify-between p-4 cursor-pointer select-none hover:bg-wabi-bg/50 transition-colors">
+                            <div class="flex items-center gap-2">
+                                <i class="fa-solid fa-server text-wabi-text-secondary group-open:text-wabi-primary transition-colors text-sm"></i>
+                                <span class="text-sm font-bold text-wabi-text-secondary group-open:text-wabi-primary transition-colors">伺服器設定</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs text-wabi-text-secondary font-mono truncate max-w-[150px] sm:max-w-[240px]">${cleanDomain}</span>
+                                <i class="fa-solid fa-chevron-down text-xs text-wabi-text-secondary group-open:rotate-180 transition-transform duration-200"></i>
+                            </div>
+                        </summary>
+                        <div class="p-4 pt-1 border-t border-wabi-border/40 space-y-3">
+                            <div class="space-y-2">
+                                <label class="text-xs text-wabi-text-secondary font-medium">同步伺服器 URL</label>
+                                <div class="flex flex-wrap gap-2">
+                                    <input type="url" id="sync-server-url-input"
+                                        class="flex-1 min-w-0 px-3 py-2 rounded-lg border border-wabi-border bg-wabi-surface text-sm focus:ring-wabi-primary focus:border-wabi-primary font-mono text-xs"
+                                        value="${serverUrl}"
+                                        placeholder="${defaultServerUrl}" />
+                                    <button id="sync-server-save-btn" class="px-3 py-2 bg-wabi-primary text-wabi-surface rounded-lg text-sm font-medium hover:bg-wabi-primary/90 shrink-0 cursor-pointer">
+                                        儲存
+                                    </button>
+                                    <button id="sync-server-reset-btn" class="px-3 py-2 bg-wabi-bg text-wabi-text-secondary rounded-lg text-sm font-medium hover:bg-wabi-surface border border-wabi-border shrink-0 cursor-pointer" title="還原預設伺服器 URL">
+                                        <i class="fa-solid fa-rotate-left"></i>
+                                    </button>
+                                </div>
+                                <p class="text-xs text-wabi-text-secondary leading-relaxed">
+                                    用於雲端備份與認證的伺服器地址（預設連線至 Cloudflare Workers）
+                                </p>
+                            </div>
+                        </div>
+                    </details>
 
                 </div>
             </div>
@@ -198,13 +246,14 @@ export class SyncSettingsPage {
         if (serverSaveBtn) {
             serverSaveBtn.addEventListener('click', async () => {
                 const input = document.getElementById('sync-server-url-input')
-                const url = input.value.trim()
+                const url = input ? input.value.trim() : ''
                 if (!url) {
                     showToast('請輸入伺服器 URL', 'error')
                     return
                 }
                 await this.app.syncService.setServerUrl(url)
                 showToast('伺服器 URL 已儲存', 'success')
+                await this.render()
             })
         }
 
@@ -212,11 +261,15 @@ export class SyncSettingsPage {
         const serverResetBtn = document.getElementById('sync-server-reset-btn')
         if (serverResetBtn) {
             serverResetBtn.addEventListener('click', async () => {
-                const defaultUrl = 'https://jijun-server.the-walking-fish.com'
+                const defaultUrl =
+                    typeof this.app.syncService.getDefaultServerUrl === 'function'
+                        ? this.app.syncService.getDefaultServerUrl()
+                        : 'https://easy-accounting-sync.workers.cloudflare.henry-yo.top'
                 const input = document.getElementById('sync-server-url-input')
                 if (input) input.value = defaultUrl
                 await this.app.syncService.setServerUrl(defaultUrl)
                 showToast('已還原預設伺服器 URL', 'success')
+                await this.render()
             })
         }
 
@@ -342,12 +395,26 @@ export class SyncSettingsPage {
                     backupBtn.disabled = true
                     backupBtn.innerHTML =
                         '<i class="fa-solid fa-spinner fa-spin"></i> 備份中...'
+
+                    let backupResult
                     if (typeof this.app.syncService.backupToCloud === 'function') {
-                        await this.app.syncService.backupToCloud()
+                        backupResult = await this.app.syncService.backupToCloud()
                     } else {
-                        await this.app.syncService.backupToDrive()
+                        backupResult = await this.app.syncService.backupToDrive()
                     }
-                    showToast('備份成功！', 'success')
+
+                    const sizeText = backupResult?.sizeBytes ? formatBytes(backupResult.sizeBytes) : ''
+                    const recordsCount = backupResult?.recordsCount ?? backupResult?.details?.records
+                    const totalItems = backupResult?.totalItems ?? recordsCount
+
+                    let successMsg = '全量備份成功！'
+                    if (sizeText && recordsCount !== undefined) {
+                        successMsg = `全量備份成功！已備份 ${sizeText} (${recordsCount} 筆明細，共 ${totalItems} 筆資料)`
+                    } else if (sizeText) {
+                        successMsg = `全量備份成功！已備份 ${sizeText}`
+                    }
+
+                    showToast(successMsg, 'success')
                     await this.render()
                 } catch (err) {
                     console.error('Backup error:', err)
@@ -375,15 +442,15 @@ export class SyncSettingsPage {
                             const date = new Date(b.createdTime).toLocaleString(
                                 'zh-TW'
                             )
-                            const sizeKB = b.size
-                                ? (parseInt(b.size) / 1024).toFixed(1)
-                                : '?'
+                            const sizeText = b.size
+                                ? formatBytes(parseInt(b.size, 10))
+                                : '未知大小'
                             return `<div class="flex items-center justify-between p-3 hover:bg-wabi-bg rounded-lg border border-wabi-border gap-2">
-                                <button class="restore-backup-item flex-1 text-left min-w-0" data-file-id="${b.id}">
+                                <button class="restore-backup-item flex-1 text-left min-w-0 cursor-pointer" data-file-id="${b.id}">
                                     <p class="text-sm font-medium text-wabi-text-primary truncate">${b.name}</p>
-                                    <p class="text-xs text-wabi-text-secondary">${date} · ${sizeKB} KB</p>
+                                    <p class="text-xs text-wabi-text-secondary">${date} · ${sizeText}</p>
                                 </button>
-                                <button class="delete-backup-item p-2 text-wabi-text-secondary hover:text-red-500 rounded-lg shrink-0 transition-colors" data-file-id="${b.id}" title="刪除此備份">
+                                <button class="delete-backup-item p-2 text-wabi-text-secondary hover:text-red-500 rounded-lg shrink-0 transition-colors cursor-pointer" data-file-id="${b.id}" title="刪除此備份">
                                     <i class="fa-solid fa-trash-can"></i>
                                 </button>
                             </div>`
@@ -397,7 +464,7 @@ export class SyncSettingsPage {
                         <div class="bg-wabi-surface w-full max-w-lg rounded-t-2xl p-4 max-h-[70vh] overflow-y-auto animate-slide-up">
                             <div class="flex justify-between items-center mb-4">
                                 <h3 class="text-lg font-bold text-wabi-primary">選擇備份</h3>
-                                <button id="close-restore-modal" class="p-2 text-wabi-text-secondary hover:text-wabi-primary">
+                                <button id="close-restore-modal" class="p-2 text-wabi-text-secondary hover:text-wabi-primary cursor-pointer">
                                     <i class="fa-solid fa-xmark text-xl"></i>
                                 </button>
                             </div>
@@ -459,10 +526,9 @@ export class SyncSettingsPage {
                                     try {
                                         const backupData =
                                             typeof this.app.syncService.restoreFromCloud === 'function'
-                                                ? await this.app.syncService.restoreFromCloud(fileId)
+                                                 ? await this.app.syncService.restoreFromCloud(fileId)
                                                 : await this.app.syncService.restoreFromDrive(fileId)
                                         progressModal.update(25, '正在準備還原資料...')
-                                        // Use the import logic — create a temporary blob
                                         const blob = new Blob(
                                             [JSON.stringify(backupData)],
                                             {
@@ -482,14 +548,12 @@ export class SyncSettingsPage {
                                                 {
                                                     skipConfirm: true,
                                                     onProgress: (pct, msg) => {
-                                                        // Map 0-100% of import to 25% - 85%
                                                         progressModal.update(25 + Math.round(pct * 0.6), msg)
                                                     }
                                                 }
                                             )
                                         if (result.success) {
                                             progressModal.update(88, '正在更新同步狀態...')
-                                            // Reset sync history to avoid replaying old changes
                                             if (typeof this.app.syncService.markAllRemoteChangesAsPulled === 'function') {
                                                 await this.app.syncService.markAllRemoteChangesAsPulled()
                                             }
@@ -498,36 +562,26 @@ export class SyncSettingsPage {
                                             progressModal.update(100, '備份還原成功！')
                                             setTimeout(() => {
                                                 progressModal.close(() => {
-                                                    showToast(
-                                                        '備份還原成功！正在重新載入...',
-                                                        'success'
-                                                    )
-                                                    this.app.currentHash = null
-                                                    window.location.hash = '#home'
-                                                    setTimeout(() => {
-                                                        window.location.reload()
-                                                    }, 300)
+                                                    showToast('資料已成功還原！', 'success')
                                                 })
                                             }, 500)
                                         } else {
-                                            progressModal.close()
-                                            showToast(
-                                                result.message || '還原失敗',
-                                                'error'
-                                            )
+                                            progressModal.close(() => {
+                                                showToast('還原失敗：' + (result.message || '未知錯誤'), 'error')
+                                            })
                                         }
                                     } catch (err) {
-                                        progressModal.close()
-                                        showToast(
-                                            '還原失敗：' + err.message,
-                                            'error'
-                                        )
+                                        console.error('Restore error:', err)
+                                        progressModal.close(() => {
+                                            showToast('還原失敗：' + err.message, 'error')
+                                        })
                                     }
                                 })
                             })
                         })
                 } catch (err) {
-                    showToast('載入備份列表失敗：' + err.message, 'error')
+                    console.error('List backups error:', err)
+                    showToast('取得備份列表失敗：' + err.message, 'error')
                 }
             })
         }
@@ -539,85 +593,51 @@ export class SyncSettingsPage {
         if (autoBackupToggle) {
             autoBackupToggle.addEventListener('change', async e => {
                 const enabled = e.target.checked
-                await this.app.dataService.saveSetting({
-                    key: 'sync_auto_backup_enabled',
-                    value: enabled,
-                })
-                const intervalContainer = document.getElementById(
+                await this.app.syncService.setAutoBackupEnabled(enabled)
+                const container = document.getElementById(
                     'auto-backup-interval-container'
                 )
-                if (enabled) {
-                    const intervalSetting =
-                        await this.app.dataService.getSetting(
-                            'sync_auto_backup_interval'
-                        )
-                    const interval = intervalSetting?.value || 'daily'
-                    this.app.syncService.startAutoBackup(interval)
-                    if (intervalContainer)
-                        intervalContainer.classList.remove('hidden')
-                    showToast('已啟用自動備份', 'success')
-                } else {
-                    this.app.syncService.stopAutoBackup()
-                    if (intervalContainer)
-                        intervalContainer.classList.add('hidden')
-                    showToast('已停用自動備份', 'info')
+                if (container) {
+                    container.classList.toggle('hidden', !enabled)
                 }
+                showToast(
+                    enabled ? '已開啟自動備份' : '已關閉自動備份',
+                    'info'
+                )
             })
         }
 
         // Auto backup interval buttons
-        document.querySelectorAll('.auto-backup-interval-btn').forEach(btn => {
-            btn.addEventListener('click', async () => {
-                const interval = btn.dataset.interval
-                await this.app.dataService.saveSetting({
-                    key: 'sync_auto_backup_interval',
-                    value: interval,
+        document
+            .querySelectorAll('.auto-backup-interval-btn')
+            .forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const interval = btn.dataset.interval
+                    await this.app.syncService.setAutoBackupInterval(interval)
+                    document
+                        .querySelectorAll('.auto-backup-interval-btn')
+                        .forEach(b => {
+                            const active = b.dataset.interval === interval
+                            b.className = `auto-backup-interval-btn flex-1 py-2 rounded-lg text-sm font-medium border transition-colors cursor-pointer ${
+                                active
+                                    ? 'bg-wabi-primary text-wabi-surface border-wabi-primary'
+                                    : 'bg-wabi-surface text-wabi-text-primary border-wabi-border hover:border-wabi-primary'
+                            }`
+                        })
+                    showToast('已更新備份頻率', 'success')
                 })
-                // Update button styles
-                document
-                    .querySelectorAll('.auto-backup-interval-btn')
-                    .forEach(b => {
-                        b.className = b.className.replace(
-                            /bg-wabi-primary text-wabi-surface border-wabi-primary/g,
-                            'bg-wabi-surface text-wabi-text-primary border-wabi-border hover:border-wabi-primary'
-                        )
-                    })
-                btn.className = btn.className.replace(
-                    /bg-wabi-surface text-wabi-text-primary border-wabi-border hover:border-wabi-primary/g,
-                    'bg-wabi-primary text-wabi-surface border-wabi-primary'
-                )
-                // Restart auto backup with new interval
-                const autoBackupSetting = await this.app.dataService.getSetting(
-                    'sync_auto_backup_enabled'
-                )
-                if (autoBackupSetting?.value) {
-                    this.app.syncService.startAutoBackup(interval)
-                }
-                const labels = {
-                    daily: '每天',
-                    '3days': '每 3 天',
-                    weekly: '每週',
-                }
-                showToast(`備份頻率已設定為${labels[interval]}`, 'success')
             })
-        })
 
         // Auto sync toggle
         const autoSyncToggle = document.getElementById('sync-auto-toggle')
         if (autoSyncToggle) {
             autoSyncToggle.addEventListener('change', async e => {
                 const enabled = e.target.checked
-                await this.app.dataService.saveSetting({
-                    key: 'sync_auto_enabled',
-                    value: enabled,
-                })
-                if (enabled) {
-                    this.app.syncService.startAutoSync(24 * 60 * 60 * 1000)
-                    showToast('已啟用自動同步', 'success')
-                } else {
-                    this.app.syncService.stopAutoSync()
-                    showToast('已停用自動同步', 'info')
-                }
+                await this.app.syncService.setAutoSyncEnabled(enabled)
+                showToast(
+                    enabled ? '已開啟自動同步' : '已關閉自動同步',
+                    'info'
+                )
             })
         }
 
@@ -629,7 +649,7 @@ export class SyncSettingsPage {
                     syncNowBtn.disabled = true
                     syncNowBtn.innerHTML =
                         '<i class="fa-solid fa-spinner fa-spin"></i> 同步中...'
-                    await this.app.syncService.performSync()
+                    await this.app.syncService.sync()
                     showToast('同步完成！', 'success')
                     await this.render()
                 } catch (err) {

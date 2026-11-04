@@ -18,7 +18,7 @@ const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_API_KEY || ''
 /** @type {string} 預設同步伺服器 URL（可透過 .env.local 的 VITE_SYNC_SERVER_URL 覆蓋） */
 const DEFAULT_SERVER_URL =
     import.meta.env.VITE_SYNC_SERVER_URL ||
-    'https://jijun-server.the-walking-fish.com'
+    'https://easy-accounting-sync.workers.cloudflare.henry-yo.top'
 
 /** @type {string[]} 基礎登入與個人備份所需 scope */
 const BASE_SCOPES = [
@@ -658,11 +658,24 @@ export class SyncService {
     }
 
     /**
+     * 取得預設同步伺服器 URL
+     * @returns {string}
+     */
+    getDefaultServerUrl() {
+        return DEFAULT_SERVER_URL
+    }
+
+    /**
      * 設定同步伺服器 URL
      * @param {string} url
      */
     async setServerUrl(url) {
-        this.serverUrl = url.replace(/\/+$/, '')
+        if (!url || typeof url !== 'string') return
+        let cleaned = url.trim().replace(/\/+$/, '')
+        if (!/^https?:\/\//i.test(cleaned)) {
+            cleaned = `https://${cleaned}`
+        }
+        this.serverUrl = cleaned
         await this.dataService.saveSetting({
             key: 'sync_server_url',
             value: this.serverUrl,
@@ -687,17 +700,47 @@ export class SyncService {
         const fileName = `backup_${new Date().toISOString().replace(/[:.]/g, '-')}.json`
         const serverUrl = this.serverUrl.replace(/\/+$/, '')
 
+        const payloadStr = JSON.stringify({
+            fileName,
+            data: exportData,
+            deviceId: this.deviceId,
+        })
+
+        // 精確計算全量備份大小 (位元組)
+        let sizeBytes = 0
+        try {
+            sizeBytes = typeof Blob !== 'undefined' ? new Blob([payloadStr]).size : Buffer.byteLength(payloadStr, 'utf8')
+        } catch (_) {
+            sizeBytes = payloadStr.length
+        }
+
+        // 統計已備份筆數
+        const recordsCount = Array.isArray(exportData.records) ? exportData.records.length : 0
+        const accountsCount = Array.isArray(exportData.accounts) ? exportData.accounts.length : 0
+        const debtsCount = Array.isArray(exportData.debts) ? exportData.debts.length : 0
+        const contactsCount = Array.isArray(exportData.contacts) ? exportData.contacts.length : 0
+        const recurringCount = Array.isArray(exportData.recurring_transactions) ? exportData.recurring_transactions.length : 0
+        const amortizationsCount = Array.isArray(exportData.amortizations) ? exportData.amortizations.length : 0
+        const groupsCount = Array.isArray(exportData.groupMeta) ? exportData.groupMeta.length : 0
+        const ledgersCount = Array.isArray(exportData.ledgers) ? exportData.ledgers.length : 0
+
+        const totalItems =
+            recordsCount +
+            accountsCount +
+            debtsCount +
+            contactsCount +
+            recurringCount +
+            amortizationsCount +
+            groupsCount +
+            ledgersCount
+
         const res = await fetch(`${serverUrl}/api/backup`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 Authorization: `Bearer ${this.accessToken}`,
             },
-            body: JSON.stringify({
-                fileName,
-                data: exportData,
-                deviceId: this.deviceId,
-            }),
+            body: payloadStr,
         })
 
         if (!res.ok) {
@@ -708,13 +751,34 @@ export class SyncService {
         const resData = await res.json()
         const backupMeta = resData.backup || { id: resData.id, fileName }
 
-        // 記錄最後備份時間
+        const backupSummary = {
+            timestamp: Date.now(),
+            fileName,
+            sizeBytes,
+            recordsCount,
+            totalItems,
+            details: {
+                records: recordsCount,
+                accounts: accountsCount,
+                debts: debtsCount,
+                contacts: contactsCount,
+                recurring: recurringCount,
+                amortizations: amortizationsCount,
+                groups: groupsCount,
+                ledgers: ledgersCount,
+            },
+        }
+
+        // 記錄最後備份時間與統計資訊 (供 UI 顯示已備份大小與筆數)
         await this.dataService.saveSetting({
             key: 'sync_last_backup',
-            value: { timestamp: Date.now(), fileName },
+            value: backupSummary,
         })
 
-        return backupMeta
+        return {
+            ...backupMeta,
+            ...backupSummary,
+        }
     }
 
     /**

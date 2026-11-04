@@ -112,7 +112,7 @@ describe('SyncService', () => {
 
         it('使用預設伺服器 URL', () => {
             expect(ss.getServerUrl()).toBe(
-                'https://jijun-server.the-walking-fish.com'
+                'https://easy-accounting-sync.workers.cloudflare.henry-yo.top'
             )
         })
 
@@ -232,7 +232,7 @@ describe('SyncService', () => {
     describe('getServerUrl / setServerUrl', () => {
         it('預設回傳 DEFAULT_SERVER_URL', () => {
             expect(ss.getServerUrl()).toBe(
-                'https://jijun-server.the-walking-fish.com'
+                'https://easy-accounting-sync.workers.cloudflare.henry-yo.top'
             )
         })
 

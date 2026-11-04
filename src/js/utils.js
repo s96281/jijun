@@ -196,6 +196,19 @@ export function showProgressModal(title = '處理中', initialMessage = '正在�
     }
 }
 
+/**
+ * 格式化檔案大小 (B, KB, MB, GB)
+ * @param {number} bytes - 位元組大小
+ * @returns {string} 格式化後的字串
+ */
+export function formatBytes(bytes) {
+    if (!bytes || bytes <= 0 || isNaN(bytes)) return '0 B'
+    const units = ['B', 'KB', 'MB', 'GB']
+    const i = Math.floor(Math.log(bytes) / Math.log(1024))
+    const formatted = (bytes / Math.pow(1024, i)).toFixed(i === 0 ? 0 : 1)
+    return `${formatted} ${units[i]}`
+}
+
 export function formatCurrency(amount) {
     if (isNaN(amount)) return '0'
     return new Intl.NumberFormat('zh-TW', {

@@ -1,5 +1,14 @@
 // 版本更新日誌模組
 export const CHANGELOG = {
+    '2.1.8.17': {
+        date: '2026-11-05',
+        title: 'Cloudflare Workers 預設同步與全量備份統計',
+        features: [
+            '設定預設同步伺服器：預設同步伺服器 URL 更新為 Cloudflare Workers (easy-accounting-sync.workers.cloudflare.henry-yo.top)，支援自動協定補全與網址清理。',
+            '伺服器設定摺疊收納：將伺服器設定移至最底端並改用原生 details 摺疊面板，預設收合並顯示目前網域，大幅降低干擾。',
+            '全量備份容量與筆數統計：立即備份時即時統計封裝大小與筆數（含記帳明細筆數與全資料筆數），於雲端備份卡片與完成提示清晰展示，備份歷程亦支援大小格式化。',
+        ],
+    },
     '2.1.8.16': {
         date: '2026-11-05',
         title: 'Android 更新下載與覆蓋安裝穩定性修復',
