@@ -1138,28 +1138,32 @@ export class SettingsPage {
     }
 
     async checkForUpdates() {
-        showToast('正在檢查更新...')
-
-        // Android APK 不會因 GitHub Release 建立而產生新的 Service Worker，
-        // 因此先直接比對 GitHub 最新正式 Release 的 tag 與目前 App 版本。
-        try {
-            const response = await fetch(GITHUB_LATEST_RELEASE_URL, {
-                headers: { Accept: 'application/vnd.github+json' },
-                cache: 'no-store',
-            })
-            if (!response.ok) {
-                throw new Error(`GitHub Release API 回應 ${response.status}`)
+        if (this.app?.appUpdateService) {
+            try {
+                const res = await this.app.appUpdateService.checkForUpdates({ isManual: true })
+                if (res?.hasUpdate) return
+            } catch (error) {
+                console.warn('AppUpdateService 檢查失敗，回退至 ServiceWorker 檢查:', error)
             }
-            const release = await response.json()
-            const currentVersion =
-                typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'
-            if (isVersionNewer(release.tag_name, currentVersion)) {
-                this.showGitHubReleaseAvailable(release, currentVersion)
-                return
+        } else {
+            showToast('正在檢查更新...')
+            try {
+                const response = await fetch(GITHUB_LATEST_RELEASE_URL, {
+                    headers: { Accept: 'application/vnd.github+json' },
+                    cache: 'no-store',
+                })
+                if (response.ok) {
+                    const release = await response.json()
+                    const currentVersion =
+                        typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'
+                    if (isVersionNewer(release.tag_name, currentVersion)) {
+                        this.showGitHubReleaseAvailable(release, currentVersion)
+                        return
+                    }
+                }
+            } catch (error) {
+                console.warn('GitHub Release 更新檢查失敗:', error)
             }
-        } catch (error) {
-            // 無網路、GitHub API 限流時仍繼續執行 PWA Service Worker 更新檢查。
-            console.warn('GitHub Release 更新檢查失敗:', error)
         }
 
         if ('serviceWorker' in navigator) {
@@ -1173,7 +1177,9 @@ export class SettingsPage {
             }
         }
 
-        showToast('已是最新版本！', 'success')
+        if (!this.app?.appUpdateService) {
+            showToast('已是最新版本！', 'success')
+        }
     }
 
     showGitHubReleaseAvailable(release, currentVersion) {

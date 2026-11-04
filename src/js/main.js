@@ -30,6 +30,7 @@ import { ThemeManager } from './themeManager.js'
 import { AIService } from './aiService.js'
 import { Router } from './router.js'
 import { GuideManager } from './tourManager.js'
+import { AppUpdateService } from './appUpdateService.js'
 import { escapeHTML } from './utils.js'
 import { updateAndroidWidget } from './widgetHelper.js'
 
@@ -83,6 +84,7 @@ export class EasyAccountingApp {
         this.notificationService = new NotificationService(this.dataService)
         this.themeManager = new ThemeManager(this.dataService)
         this.guideManager = new GuideManager(this)
+        this.appUpdateService = new AppUpdateService(this)
 
         this.appContainer = document.getElementById('app-container')
 
@@ -321,6 +323,13 @@ export class EasyAccountingApp {
                     }
                 });
             });
+
+            // Android 冷啟動時自動檢查更新並彈出通知
+            if (window.Capacitor?.getPlatform?.() === 'android') {
+                setTimeout(() => {
+                    this.appUpdateService.checkOnStartup();
+                }, 1500);
+            }
 
             // 初始化時更新一次 Widget 資料
             if (['home', 'records'].includes(window.location.hash.replace('#', '') || 'home')) {

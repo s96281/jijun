@@ -19,6 +19,7 @@ import { SyncService } from '../../src/js/syncService.js'
 import { NotificationService } from '../../src/js/notificationService.js'
 import { ThemeManager } from '../../src/js/themeManager.js'
 import { GuideManager } from '../../src/js/tourManager.js'
+import { AppUpdateService } from '../../src/js/appUpdateService.js'
 import { EasyAccountingApp } from '../../src/js/main.js'
 
 // svc 名 -> 類 (與 main.js 的 this.app.xxx = new Xxx 綁定一致)
@@ -37,6 +38,7 @@ const serviceClasses = {
     notificationService: NotificationService,
     themeManager: ThemeManager,
     guideManager: GuideManager,
+    appUpdateService: AppUpdateService,
 }
 
 // 非 service 的 app 屬性（DOM 容器 / 原生 PWA 對象等），不參與契約檢查
