@@ -1,5 +1,18 @@
 # 輕鬆記帳 2.0 - 更新日誌
 
+## v2.1.8.8 (2026-11-04) - Android Release 簽名金鑰管理與覆蓋更新防護
+
+### ✨ 新功能
+
+- **版本號與 Release 標籤同步**：應用程式版本升級至 v2.1.8.8。
+- **Android 內部版本號同步更新**：同步更新 Android `versionName` (2.1.8.8) 與 `versionCode` (21808)，確保發行版本與建置中繼資料一致。
+- **Android Release 簽名金鑰管理工具**：新增 `scripts/manage-keystore.js` 自動化金鑰管理腳本（`npm run keystore:generate` / `keystore:export` / `keystore:info`），支援固定 PKCS#12 金鑰產生、GitHub Secrets 所需之 Base64 單行匯出、憑證 SHA-256 指紋檢視，以及 `android/keystore.properties` 自動產生。
+- **Gradle 本地自動簽名配置**：`android/app/build.gradle` 新增 `signingConfigs.release`，優先讀取 `keystore.properties`（專案根目錄 / `android/` / `android/app/`），其次支援環境變數（`KEYSTORE` / `ANDROID_KEYSTORE_FILE` 等）與固定 `release.keystore`，本地 `assembleRelease` 即可產出已簽署之 APK/AAB。
+- **CI/CD 簽名安全防護**：GitHub Actions Release 流程改為未配置固定金鑰時直接 `exit 1` 阻擋建置，絕不靜默生成臨時隨機金鑰（避免使用者無法覆蓋更新並遺失記帳資料）；簽署後自動執行 `apksigner verify --verbose --print-certs` 完整稽核憑證指紋。
+- **金鑰安全文件與排除規則**：新增《Android Release 簽名金鑰管理與覆蓋更新指南》(`docs/android-release-signing.md`)；`.gitignore` 排除所有金鑰實體（`*.keystore` / `*.jks` / `*.p12`）與密碼檔（`keystore.properties` 等）。
+
+---
+
 ## v2.1.8.7 (2026-11-04) - 版本號與 Android 內部版本同步更新
 
 ### ✨ 新功能

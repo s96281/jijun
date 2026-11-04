@@ -31,9 +31,17 @@ android/capacitor-cordova-android-plugins/build/
 *.apk
 *.aab
 *.keystore
+*.jks
+*.p12
+*.keystore.base64.txt
+keystore.properties
+android/keystore.properties
+.env.keystore
 
 .worktrees/
 .agents/
 
 # Documentation / Specs
 docs/superpowers/
+
+BACKUP/

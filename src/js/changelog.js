@@ -1,5 +1,17 @@
 // 版本更新日誌模組
 export const CHANGELOG = {
+    '2.1.8.8': {
+        date: '2026-11-04',
+        title: 'Android Release 簽名金鑰管理與覆蓋更新防護',
+        features: [
+            '版本號與 Release 標籤同步：應用程式版本升級至 v2.1.8.8。',
+            'Android 內部版本號同步更新：同步更新 Android versionName (2.1.8.8) 與 versionCode (21808)。',
+            'Android Release 簽名金鑰管理工具：新增 scripts/manage-keystore.js 自動化腳本（keystore:generate / keystore:export / keystore:info），支援固定 PKCS#12 金鑰產生、GitHub Secrets Base64 匯出與憑證指紋檢視。',
+            'Gradle 本地自動簽名配置：android/app/build.gradle 新增 signingConfigs.release，支援 keystore.properties、環境變數與固定 release.keystore 多來源載入。',
+            'CI/CD 簽名安全防護：GitHub Actions Release 流程未配置固定金鑰時直接中止建置，絕不靜默生成臨時隨機金鑰；簽署後自動 apksigner verify --print-certs 稽核憑證指紋。',
+            '金鑰安全文件與排除規則：新增 docs/android-release-signing.md 指南；.gitignore 排除所有金鑰實體與密碼檔。',
+        ],
+    },
     '2.1.8.7': {
         date: '2026-11-04',
         title: '版本號與 Android 內部版本同步更新',

@@ -7,8 +7,8 @@ android {
         applicationId "com.walkingfish.easyaccounting"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 21807
-        versionName "2.1.8.7"
+        versionCode 21808
+        versionName "2.1.8.8"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -26,11 +26,63 @@ android {
             universalApk true
         }
     }
+    signingConfigs {
+        release {
+            // 優先讀取 keystore.properties (支援專案根目錄、android/ 目錄或 app/ 目錄)
+            def candidatePropFiles = [
+                rootProject.file("keystore.properties"),
+                rootProject.file("../keystore.properties"),
+                file("keystore.properties")
+            ]
+            def keystorePropsFile = candidatePropFiles.find { it.exists() }
+            if (keystorePropsFile) {
+                def props = new Properties()
+                keystorePropsFile.withInputStream { props.load(it) }
+                def storeFilePath = props.getProperty('storeFile')
+                if (storeFilePath) {
+                    def resolvedFile = file(storeFilePath).isAbsolute() ? file(storeFilePath) :
+                        keystorePropsFile.parentFile ? new File(keystorePropsFile.parentFile, storeFilePath) : file(storeFilePath)
+                    storeFile resolvedFile
+                }
+                storePassword props.getProperty('storePassword')
+                keyAlias props.getProperty('keyAlias')
+                keyPassword props.getProperty('keyPassword')
+            } else if (System.getenv("KEYSTORE") != null && file(System.getenv("KEYSTORE")).exists()) {
+                storeFile file(System.getenv("KEYSTORE"))
+                storePassword System.getenv("STOREPASS") ?: System.getenv("KEYSTORE_PASSWORD")
+                keyAlias System.getenv("KEYALIAS") ?: System.getenv("KEY_ALIAS")
+                keyPassword System.getenv("KEYPASS") ?: System.getenv("KEY_PASSWORD")
+            } else if (System.getenv("ANDROID_KEYSTORE_FILE") != null && file(System.getenv("ANDROID_KEYSTORE_FILE")).exists()) {
+                storeFile file(System.getenv("ANDROID_KEYSTORE_FILE"))
+                storePassword System.getenv("KEYSTORE_PASSWORD")
+                keyAlias System.getenv("KEY_ALIAS")
+                keyPassword System.getenv("KEY_PASSWORD")
+            } else if (rootProject.file("../release.keystore").exists()) {
+                storeFile rootProject.file("../release.keystore")
+                storePassword System.getenv("STOREPASS") ?: System.getenv("KEYSTORE_PASSWORD") ?: "android123"
+                keyAlias System.getenv("KEYALIAS") ?: System.getenv("KEY_ALIAS") ?: "easyaccounting"
+                keyPassword System.getenv("KEYPASS") ?: System.getenv("KEY_PASSWORD") ?: "android123"
+            } else if (rootProject.file("release.keystore").exists()) {
+                storeFile rootProject.file("release.keystore")
+                storePassword System.getenv("STOREPASS") ?: System.getenv("KEYSTORE_PASSWORD") ?: "android123"
+                keyAlias System.getenv("KEYALIAS") ?: System.getenv("KEY_ALIAS") ?: "easyaccounting"
+                keyPassword System.getenv("KEYPASS") ?: System.getenv("KEY_PASSWORD") ?: "android123"
+            } else if (file("release.keystore").exists()) {
+                storeFile file("release.keystore")
+                storePassword System.getenv("STOREPASS") ?: System.getenv("KEYSTORE_PASSWORD") ?: "android123"
+                keyAlias System.getenv("KEYALIAS") ?: System.getenv("KEY_ALIAS") ?: "easyaccounting"
+                keyPassword System.getenv("KEYPASS") ?: System.getenv("KEY_PASSWORD") ?: "android123"
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (signingConfigs.release.storeFile != null && signingConfigs.release.storeFile.exists()) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }

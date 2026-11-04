@@ -492,6 +492,7 @@ npx cap open android
 
 - **[English Documentation (英文說明文件)](README_en.md)** - Complete project documentation in English
 - **[Per-Device 同步架構技術文件 (English Spec)](docs/PER_DEVICE_SYNC_en.md)** - Technical specification for the multi-user shared ledger sync protocol
+- **[Android Release 簽名金鑰管理與覆蓋更新指南](docs/android-release-signing.md)** - Android Keystore 金鑰管理、CI/CD Secrets 配置與覆蓋升級規範
 - **[完整更新日誌](CHANGE_LOG.md)** - 查看所有版本的詳細更新記錄
 - **[主題開發指南](THEME_DEV_GUIDE.md)** - 深入了解外觀主題自訂與商店規格
 - **[擴充功能開發指南](PLUGIN_DEV_GUIDE.md)** - 插件系統 API 與沙箱架構說明

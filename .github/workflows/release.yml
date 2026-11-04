@@ -14,6 +14,10 @@ on:
         description: '標記為發布預覽版 (Pre-release)'
         type: boolean
         default: false
+      allow_ephemeral_keystore:
+        description: '允許使用臨時動態金鑰（僅限測試 fork 構建，不可用於正式發布，否則無法覆蓋更新）'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -99,6 +103,50 @@ jobs:
       - name: Make gradlew Executable
         run: chmod +x ./android/gradlew
 
+      - name: Prepare Signing Keystore
+        id: prepare_keystore
+        run: |
+          mkdir -p release-artifacts
+          if [ -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
+            echo "::notice::使用 GitHub Repository Secrets 中的正式簽名 Keystore..."
+            echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > release.keystore
+            echo "KEYSTORE=$PWD/release.keystore" >> $GITHUB_ENV
+            echo "STOREPASS=${{ secrets.KEYSTORE_PASSWORD }}" >> $GITHUB_ENV
+            echo "KEYALIAS=${{ secrets.KEY_ALIAS }}" >> $GITHUB_ENV
+            echo "KEYPASS=${{ secrets.KEY_PASSWORD }}" >> $GITHUB_ENV
+          elif [ -f "release.keystore" ]; then
+            echo "::notice::使用專案根目錄中已存在的固定 release.keystore..."
+            echo "KEYSTORE=$PWD/release.keystore" >> $GITHUB_ENV
+            echo "STOREPASS=${{ secrets.KEYSTORE_PASSWORD || 'android123' }}" >> $GITHUB_ENV
+            echo "KEYALIAS=${{ secrets.KEY_ALIAS || 'easyaccounting' }}" >> $GITHUB_ENV
+            echo "KEYPASS=${{ secrets.KEY_PASSWORD || 'android123' }}" >> $GITHUB_ENV
+          elif [ -f "android/app/release.keystore" ]; then
+            echo "::notice::使用 android/app/release.keystore..."
+            echo "KEYSTORE=$PWD/android/app/release.keystore" >> $GITHUB_ENV
+            echo "STOREPASS=${{ secrets.KEYSTORE_PASSWORD || 'android123' }}" >> $GITHUB_ENV
+            echo "KEYALIAS=${{ secrets.KEY_ALIAS || 'easyaccounting' }}" >> $GITHUB_ENV
+            echo "KEYPASS=${{ secrets.KEY_PASSWORD || 'android123' }}" >> $GITHUB_ENV
+          elif [ "${{ secrets.ALLOW_EPHEMERAL_KEYSTORE }}" = "true" ] || [ "${{ github.event.inputs.allow_ephemeral_keystore }}" = "true" ]; then
+            echo "::warning::[警告] 未偵測到固定金鑰，依設定允許生成臨時動態金鑰！此產出之 APK 無法用於舊版本覆蓋更新！"
+            keytool -genkey -v -keystore release.keystore -alias easyaccounting -keyalg RSA -keysize 2048 -validity 10000 -storepass android123 -keypass android123 -dname "CN=EasyAccounting, O=WalkingFish, C=TW"
+            echo "KEYSTORE=$PWD/release.keystore" >> $GITHUB_ENV
+            echo "STOREPASS=android123" >> $GITHUB_ENV
+            echo "KEYALIAS=easyaccounting" >> $GITHUB_ENV
+            echo "KEYPASS=android123" >> $GITHUB_ENV
+          else
+            echo "::error::=========================================================================="
+            echo "::error::[簽名安全防護阻擋] 未配置固定的 Android 簽名金鑰 (Secret 或 release.keystore)！"
+            echo "::error::為防止動態生成隨機金鑰導致使用者安裝新版本時簽名不符（無法覆蓋更新並遺失記帳資料），CI 已安全終止。"
+            echo "::error::請至 GitHub Repo -> Settings -> Secrets and variables -> Actions 設定："
+            echo "::error::  1. ANDROID_KEYSTORE_BASE64"
+            echo "::error::  2. KEYSTORE_PASSWORD"
+            echo "::error::  3. KEY_ALIAS"
+            echo "::error::  4. KEY_PASSWORD"
+            echo "::error::您可於本機執行 'npm run keystore:generate' 產生正式金鑰並取得 Base64。"
+            echo "::error::=========================================================================="
+            exit 1
+          fi
+
       - name: Build Android APKs (Release)
         run: |
           cd android
@@ -119,26 +167,6 @@ jobs:
           path: |
             android/**/build/reports/
 
-      - name: Prepare Signing Keystore
-        id: prepare_keystore
-        run: |
-          mkdir -p release-artifacts
-          if [ -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
-            echo "使用 Repository Secret 中的正式簽名 Keystore..."
-            echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > release.keystore
-            echo "KEYSTORE=release.keystore" >> $GITHUB_ENV
-            echo "STOREPASS=${{ secrets.KEYSTORE_PASSWORD }}" >> $GITHUB_ENV
-            echo "KEYALIAS=${{ secrets.KEY_ALIAS }}" >> $GITHUB_ENV
-            echo "KEYPASS=${{ secrets.KEY_PASSWORD }}" >> $GITHUB_ENV
-          else
-            echo "未偵測到自訂 Keystore Secret，生成專屬 Release 簽署憑證以確保 APK 可直接安裝..."
-            keytool -genkey -v -keystore release.keystore -alias easyaccounting -keyalg RSA -keysize 2048 -validity 10000 -storepass android123 -keypass android123 -dname "CN=EasyAccounting, O=WalkingFish, C=TW"
-            echo "KEYSTORE=release.keystore" >> $GITHUB_ENV
-            echo "STOREPASS=android123" >> $GITHUB_ENV
-            echo "KEYALIAS=easyaccounting" >> $GITHUB_ENV
-            echo "KEYPASS=android123" >> $GITHUB_ENV
-          fi
-
       - name: Sign APKs & AAB
         run: |
           # 尋找最新版本的 apksigner 工具
@@ -152,8 +180,9 @@ jobs:
             raw_filename=$(basename "$apk")
             filename=$(echo "$raw_filename" | sed 's/-unsigned//g')
             echo "Processing APK: $raw_filename -> $filename"
-            "$APKSIGNER" sign --ks $KEYSTORE --ks-key-alias $KEYALIAS --ks-pass pass:$STOREPASS --key-pass pass:$KEYPASS --out "release-artifacts/easy-accounting-$filename" "$apk"
-            "$APKSIGNER" verify "release-artifacts/easy-accounting-$filename" && echo "Verified: easy-accounting-$filename"
+            "$APKSIGNER" sign --ks "$KEYSTORE" --ks-key-alias "$KEYALIAS" --ks-pass "pass:$STOREPASS" --key-pass "pass:$KEYPASS" --out "release-artifacts/easy-accounting-$filename" "$apk"
+            echo "=== 簽名驗證與憑證指紋 ($filename) ==="
+            "$APKSIGNER" verify --verbose --print-certs "release-artifacts/easy-accounting-$filename"
           done
 
           # 簽署與重命名 AAB (若有)
@@ -162,7 +191,7 @@ jobs:
             filename=$(echo "$raw_filename" | sed 's/-unsigned//g')
             echo "Processing AAB: $raw_filename -> $filename"
             cp "$aab" "release-artifacts/easy-accounting-$filename"
-            jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 -keystore $KEYSTORE -storepass $STOREPASS -keypass $KEYPASS "release-artifacts/easy-accounting-$filename" $KEYALIAS
+            jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 -keystore "$KEYSTORE" -storepass "$STOREPASS" -keypass "$KEYPASS" "release-artifacts/easy-accounting-$filename" "$KEYALIAS"
           done
 
           ls -la release-artifacts
