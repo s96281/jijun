@@ -1,42 +1,24 @@
 /**
- * Easy Accounting Sync Server — Standalone (Node.js)
+ * Easy Accounting Sync & Backup Server — Standalone (Node.js)
  *
- * 使用 Node.js 原生 http 模組，讓同一份 router 邏輯
- * 也可以在 Docker / 自架伺服器上運行。
+ * 使用 Node.js 原生 http 模組，提供 REST API 介面供前端存取 PostgreSQL 資料庫。
  *
  * 環境變數：
- *   GOOGLE_CLIENT_ID     — Google OAuth 2.0 Client ID
- *   GOOGLE_CLIENT_SECRET — Google OAuth 2.0 Client Secret
- *   ALLOWED_ORIGINS      — 逗號分隔的允許 CORS origin（預設 *）
- *   PORT                 — 監聽埠號（預設 8787）
+ *   DATABASE_URL     — PostgreSQL 連線字串 (預設已包含 Prisma 連線字串)
+ *   ALLOWED_ORIGINS  — 逗號分隔的允許 CORS origin（預設 *）
+ *   PORT             — 監聽埠號（預設 8787）
  */
 
 import { createServer } from 'node:http'
 import { handleRequest } from './index.js'
+import { DEFAULT_DATABASE_URL, ensureTables } from './db.js'
 
 const PORT = parseInt(process.env.PORT || '8787', 10)
 
 const env = {
-    GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '',
-    GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || '',
+    DATABASE_URL: process.env.DATABASE_URL || DEFAULT_DATABASE_URL,
     ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS || '*',
 }
-
-// ──────────────────────────────────────────────
-// Validate required environment variables
-// ──────────────────────────────────────────────
-
-if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
-    console.error('❌ Missing required environment variables:')
-    if (!env.GOOGLE_CLIENT_ID) console.error('   - GOOGLE_CLIENT_ID')
-    if (!env.GOOGLE_CLIENT_SECRET) console.error('   - GOOGLE_CLIENT_SECRET')
-    console.error('\nPlease set them before starting the server.')
-    process.exit(1)
-}
-
-// ──────────────────────────────────────────────
-// Convert Node.js IncomingMessage → Web Request
-// ──────────────────────────────────────────────
 
 /**
  * 將 Node.js HTTP request 轉換為 Web API Request 物件
@@ -95,14 +77,18 @@ const server = createServer(async (req, res) => {
     }
 })
 
-server.listen(PORT, () => {
-    console.log(`
+ensureTables()
+    .then(() => {
+        server.listen(PORT, () => {
+            console.log(`
 ╔══════════════════════════════════════════════╗
-║   Easy Accounting Sync Server (Standalone)   ║
-╠══════════════════════════════════════════════╣
-║  🚀 Listening on port ${String(PORT).padEnd(25)}║
-║  📋 Health check: http://localhost:${String(PORT).padEnd(10)}║
-║     /api/health                              ║
+║   Easy Accounting PostgreSQL Backup Server   ║
+║   Listening on http://localhost:${PORT}        ║
 ╚══════════════════════════════════════════════╝
-  `)
-})
+`)
+        })
+    })
+    .catch(err => {
+        console.error('Failed to initialize database tables:', err)
+        process.exit(1)
+    })

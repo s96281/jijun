@@ -16,7 +16,9 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
 const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_API_KEY || ''
 
 /** @type {string} 預設同步伺服器 URL（可透過 .env.local 的 VITE_SYNC_SERVER_URL 覆蓋） */
-const DEFAULT_SERVER_URL = 'https://jijun-server.the-walking-fish.com'
+const DEFAULT_SERVER_URL =
+    import.meta.env.VITE_SYNC_SERVER_URL ||
+    'https://jijun-server.the-walking-fish.com'
 
 /** @type {string[]} 基礎登入與個人備份所需 scope */
 const BASE_SCOPES = [
@@ -191,11 +193,88 @@ export class SyncService {
     // ──────────────────────────────────────────────
 
     /**
-     * 是否已登入 Google
+     * 是否已登入
      * @returns {boolean}
      */
     isSignedIn() {
-        return !!(this.accessToken && this.refreshToken)
+        return !!(this.accessToken && (this.refreshToken || this.userInfo))
+    }
+
+    /**
+     * 註冊 PostgreSQL 雲端帳號
+     * @param {string} username 使用者名稱
+     * @param {string} password 密碼
+     * @returns {Promise<object>}
+     */
+    async register(username, password) {
+        if (!username || typeof username !== 'string' || username.trim().length < 2) {
+            throw new Error('使用者名稱長度需至少 2 個字元')
+        }
+        if (!password || typeof password !== 'string' || password.length < 6) {
+            throw new Error('密碼長度需至少 6 個字元')
+        }
+
+        const serverUrl = this.serverUrl.replace(/\/+$/, '')
+        const res = await fetch(`${serverUrl}/api/auth/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: username.trim(), password }),
+        })
+
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) {
+            throw new Error(data.error || `註冊失敗 (${res.status})`)
+        }
+
+        this.accessToken = data.token
+        this.refreshToken = data.token
+        this.tokenExpiresAt = data.expiresAt
+            ? new Date(data.expiresAt).getTime()
+            : Date.now() + 30 * 24 * 3600 * 1000
+        this.userInfo = {
+            id: data.user?.id,
+            name: data.user?.username,
+            username: data.user?.username,
+        }
+        await this.saveTokens()
+        return data
+    }
+
+    /**
+     * 登入 PostgreSQL 雲端帳號
+     * @param {string} username 使用者名稱
+     * @param {string} password 密碼
+     * @returns {Promise<object>}
+     */
+    async login(username, password) {
+        if (!username || !password) {
+            throw new Error('請輸入使用者名稱與密碼')
+        }
+
+        const serverUrl = this.serverUrl.replace(/\/+$/, '')
+        const res = await fetch(`${serverUrl}/api/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: username.trim(), password }),
+        })
+
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) {
+            throw new Error(data.error || `登入失敗 (${res.status})`)
+        }
+
+        this.accessToken = data.token
+        this.refreshToken = data.token
+        this.tokenExpiresAt = data.expiresAt
+            ? new Date(data.expiresAt).getTime()
+            : Date.now() + 30 * 24 * 3600 * 1000
+        this.userInfo = {
+            id: data.user?.id,
+            name: data.user?.username,
+            username: data.user?.username,
+        }
+        await this.saveTokens()
+        return data
     }
 
     /**
@@ -220,11 +299,18 @@ export class SyncService {
     }
 
     /**
-     * 使用 Google Identity Services (Web) 或 GoogleAuth (Native) 發起 OAuth 登入
-     * @param {boolean} [requestSharing=false] 是否要求共享權限
+     * 發起登入（支援物件傳入帳號密碼，或 Google OAuth 備援）
+     * @param {boolean|object} [requestSharing=false] 是否要求共享權限或帳密物件
      * @returns {Promise<boolean>} 是否登入成功
      */
     async signIn(requestSharing = false) {
+        if (typeof requestSharing === 'object' && requestSharing !== null) {
+            const { username, password } = requestSharing
+            if (username && password) {
+                await this.login(username, password)
+                return true
+            }
+        }
         if (isNative) {
             return this._signInNative(requestSharing)
         }
@@ -380,17 +466,21 @@ export class SyncService {
     }
 
     /**
-     * 透過 Worker 刷新 access token
+     * 刷新 access token / session
      */
     async refreshAccessToken() {
-        if (!this.refreshToken) throw new Error('No refresh token')
+        const token = this.refreshToken || this.accessToken
+        if (!token) throw new Error('No refresh token')
 
         try {
             const serverUrl = this.serverUrl.replace(/\/+$/, '')
             const res = await fetch(`${serverUrl}/api/auth/refresh`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ refresh_token: this.refreshToken }),
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({ refresh_token: token, token }),
             })
 
             if (!res.ok) {
@@ -403,8 +493,20 @@ export class SyncService {
             }
 
             const data = await res.json()
-            this.accessToken = data.access_token
-            this.tokenExpiresAt = Date.now() + (data.expires_in || 3600) * 1000
+            this.accessToken = data.token || data.access_token || token
+            this.refreshToken = this.accessToken
+            if (data.expiresAt) {
+                this.tokenExpiresAt = new Date(data.expiresAt).getTime()
+            } else {
+                this.tokenExpiresAt = Date.now() + (data.expires_in || 3600) * 1000
+            }
+            if (data.user) {
+                this.userInfo = {
+                    id: data.user.id,
+                    name: data.user.username,
+                    username: data.user.username,
+                }
+            }
             await this.saveTokens()
         } catch (err) {
             console.error('[SyncService] refreshAccessToken error:', err)
@@ -435,6 +537,21 @@ export class SyncService {
      * 登出 — 清除所有 token 和狀態
      */
     async signOut() {
+        if (this.accessToken) {
+            try {
+                const serverUrl = this.serverUrl.replace(/\/+$/, '')
+                await fetch(`${serverUrl}/api/auth/logout`, {
+                    method: 'POST',
+                    headers: {
+                        Authorization: `Bearer ${this.accessToken}`,
+                        'Content-Type': 'application/json',
+                    },
+                }).catch(() => {})
+            } catch (_) {
+                // 忽略網路錯誤
+            }
+        }
+
         // 呼叫原生登出
         if (isNative) {
             try {
@@ -553,64 +670,43 @@ export class SyncService {
     }
 
     // ──────────────────────────────────────────────
-    // Google Drive — Backup
+    // PostgreSQL Cloud Database — Backup & Restore
     // ──────────────────────────────────────────────
 
     /**
-     * 備份資料到 Google Drive appDataFolder
+     * 備份資料到雲端 PostgreSQL 資料庫
      * @returns {Promise<object>} 備份檔案的 metadata
      */
-    async backupToDrive() {
+    async backupToCloud() {
         await this.ensureValidToken()
-
-        // 備份前先清理舊備份
-        await this.cleanupOldBackups()
 
         const exportData = await this.dataService.exportDataForSync()
         exportData.backup_device = this.deviceId
         exportData.backup_timestamp = Date.now()
 
         const fileName = `backup_${new Date().toISOString().replace(/[:.]/g, '-')}.json`
-        const fileContent = JSON.stringify(exportData)
+        const serverUrl = this.serverUrl.replace(/\/+$/, '')
 
-        // 使用 multipart upload
-        const metadata = {
-            name: fileName,
-            parents: ['appDataFolder'],
-            mimeType: 'application/json',
-        }
-
-        const boundary = '-------314159265358979323846'
-        const body = [
-            `--${boundary}`,
-            'Content-Type: application/json; charset=UTF-8',
-            '',
-            JSON.stringify(metadata),
-            `--${boundary}`,
-            'Content-Type: application/json',
-            '',
-            fileContent,
-            `--${boundary}--`,
-        ].join('\r\n')
-
-        const res = await fetch(
-            'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
-            {
-                method: 'POST',
-                headers: {
-                    Authorization: `Bearer ${this.accessToken}`,
-                    'Content-Type': `multipart/related; boundary=${boundary}`,
-                },
-                body,
-            }
-        )
+        const res = await fetch(`${serverUrl}/api/backup`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${this.accessToken}`,
+            },
+            body: JSON.stringify({
+                fileName,
+                data: exportData,
+                deviceId: this.deviceId,
+            }),
+        })
 
         if (!res.ok) {
             const err = await res.json().catch(() => ({}))
-            throw new Error(
-                err.error?.message || `Backup failed (${res.status})`
-            )
+            throw new Error(err.error || `備份失敗 (${res.status})`)
         }
+
+        const resData = await res.json()
+        const backupMeta = resData.backup || { id: resData.id, fileName }
 
         // 記錄最後備份時間
         await this.dataService.saveSetting({
@@ -618,7 +714,14 @@ export class SyncService {
             value: { timestamp: Date.now(), fileName },
         })
 
-        return await res.json()
+        return backupMeta
+    }
+
+    /**
+     * 向後相容別名：備份到雲端
+     */
+    async backupToDrive() {
+        return this.backupToCloud()
     }
 
     /**
@@ -628,25 +731,37 @@ export class SyncService {
     async listBackups() {
         await this.ensureValidToken()
 
+        const serverUrl = this.serverUrl.replace(/\/+$/, '')
         const allFiles = []
         let pageToken = null
+
         do {
-            const pageParam = pageToken
-                ? `&pageToken=${encodeURIComponent(pageToken)}`
-                : ''
-            const res = await fetch(
-                `https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name contains 'backup_'&fields=nextPageToken,files(id,name,size,createdTime,modifiedTime)&orderBy=createdTime desc&pageSize=100${pageParam}`,
-                {
-                    headers: { Authorization: `Bearer ${this.accessToken}` },
-                }
+            const queryParam = pageToken ? `?pageToken=${encodeURIComponent(pageToken)}` : ''
+            const res = await fetch(`${serverUrl}/api/backup${queryParam}`, {
+                method: 'GET',
+                headers: { Authorization: `Bearer ${this.accessToken}` },
+            })
+
+            if (!res.ok) {
+                throw new Error(`無法載入備份清單 (${res.status})`)
+            }
+
+            const data = await res.json()
+            const rawList = Array.isArray(data)
+                ? data
+                : data.backups || data.files || []
+
+            allFiles.push(
+                ...rawList.map(b => ({
+                    id: String(b.id),
+                    name: b.file_name || b.name,
+                    size: b.size_bytes || b.size,
+                    createdTime: b.created_at || b.createdTime,
+                    modifiedTime: b.created_at || b.modifiedTime,
+                    deviceId: b.device_id || b.deviceId,
+                }))
             )
 
-            if (!res.ok)
-                throw new Error(`Failed to list backups (${res.status})`)
-            const data = await res.json()
-            if (Array.isArray(data.files)) {
-                allFiles.push(...data.files)
-            }
             pageToken = data.nextPageToken || null
         } while (pageToken)
 
@@ -654,34 +769,51 @@ export class SyncService {
     }
 
     /**
-     * 從 Google Drive 還原指定備份
-     * @param {string} fileId  Drive file ID
+     * 從雲端 PostgreSQL 資料庫還原指定備份
+     * @param {string|number} backupId 備份 ID
      * @returns {Promise<object>} 備份資料
      */
-    async restoreFromDrive(fileId) {
+    async restoreFromCloud(backupId) {
         await this.ensureValidToken()
 
+        const serverUrl = this.serverUrl.replace(/\/+$/, '')
         const res = await fetch(
-            `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+            `${serverUrl}/api/backup/${encodeURIComponent(backupId)}`,
             {
+                method: 'GET',
                 headers: { Authorization: `Bearer ${this.accessToken}` },
             }
         )
 
-        if (!res.ok)
-            throw new Error(`Failed to download backup (${res.status})`)
-        return await res.json()
+        if (!res.ok) {
+            throw new Error(`下載備份失敗 (${res.status})`)
+        }
+
+        const data = await res.json()
+        const backupObj = data.backup || data
+        return typeof backupObj.data === 'string'
+            ? JSON.parse(backupObj.data)
+            : backupObj.data
+    }
+
+    /**
+     * 向後相容別名：從雲端還原指定備份
+     * @param {string|number} fileId
+     */
+    async restoreFromDrive(fileId) {
+        return this.restoreFromCloud(fileId)
     }
 
     /**
      * 刪除指定備份
-     * @param {string} fileId  Drive file ID
+     * @param {string|number} backupId 備份 ID
      */
-    async deleteBackup(fileId) {
+    async deleteBackup(backupId) {
         await this.ensureValidToken()
 
+        const serverUrl = this.serverUrl.replace(/\/+$/, '')
         const res = await fetch(
-            `https://www.googleapis.com/drive/v3/files/${fileId}`,
+            `${serverUrl}/api/backup/${encodeURIComponent(backupId)}`,
             {
                 method: 'DELETE',
                 headers: { Authorization: `Bearer ${this.accessToken}` },
@@ -689,8 +821,10 @@ export class SyncService {
         )
 
         if (!res.ok && res.status !== 404) {
-            throw new Error(`Failed to delete backup (${res.status})`)
+            const err = await res.json().catch(() => ({}))
+            throw new Error(err.error || `刪除備份失敗 (${res.status})`)
         }
+        return true
     }
 
     // ──────────────────────────────────────────────

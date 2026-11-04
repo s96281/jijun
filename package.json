@@ -1,6 +1,6 @@
 {
     "name": "easy-accounting-pwa",
-    "version": "2.1.8.14",
+    "version": "2.1.8.15",
     "description": "現代化輕鬆記帳 PWA 應用程式",
     "type": "module",
     "scripts": {
@@ -10,6 +10,7 @@
         "test": "vitest run",
         "lint": "eslint . --report-unused-disable-directives",
         "format": "prettier --write .",
+        "server": "node server/src/standalone.js",
         "keystore:generate": "node scripts/manage-keystore.js generate",
         "keystore:export": "node scripts/manage-keystore.js export",
         "keystore:info": "node scripts/manage-keystore.js info"
@@ -44,6 +45,7 @@
         "date-fns": "^4.1.0",
         "html5-qrcode": "^2.3.8",
         "idb": "^8.0.0",
+        "pg": "^8.23.1",
         "qrcodejs": "^1.0.0",
         "sortablejs": "^1.15.7"
     },

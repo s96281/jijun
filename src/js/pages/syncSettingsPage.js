@@ -3,6 +3,7 @@ import { showToast, customConfirm, closeModalWithAnimation, showProgressModal } 
 export class SyncSettingsPage {
     constructor(app) {
         this.app = app
+        this.authMode = 'login' // 'login' | 'register'
     }
 
     async render() {
@@ -50,35 +51,63 @@ export class SyncSettingsPage {
                                     <i class="fa-solid fa-rotate-left"></i>
                                 </button>
                             </div>
-                            <p class="text-xs text-wabi-text-secondary">用於 Google OAuth 代理的伺服器地址</p>
+                            <p class="text-xs text-wabi-text-secondary">用於雲端備份與認證的伺服器地址</p>
                         </div>
                     </div>
 
-                    <!-- Google Account -->
+                    <!-- Cloud Account -->
                     <div class="bg-wabi-surface rounded-xl p-4 space-y-3">
-                        <h3 class="text-wabi-primary text-base font-bold">Google 帳號</h3>
+                        <h3 class="text-wabi-primary text-base font-bold">雲端資料庫帳號</h3>
                         ${
                             isSignedIn && userInfo
                                 ? `
                             <div class="flex items-center gap-3 p-3 bg-wabi-bg rounded-lg border border-wabi-border">
                                 ${userInfo.picture ? `<img src="${userInfo.picture}" class="w-10 h-10 rounded-full" alt="avatar" />` : '<div class="w-10 h-10 rounded-full bg-wabi-primary/20 flex items-center justify-center"><i class="fa-solid fa-user text-wabi-primary"></i></div>'}
-                                <div class="flex-1">
-                                    <p class="font-medium text-wabi-text-primary">${userInfo.name || 'Google User'}</p>
-                                    <p class="text-xs text-wabi-text-secondary">${userInfo.email || ''}</p>
+                                <div class="flex-1 min-w-0">
+                                    <p class="font-medium text-wabi-text-primary truncate">${userInfo.name || userInfo.username || '雲端使用者'}</p>
+                                    <p class="text-xs text-wabi-text-secondary truncate">${userInfo.email || `帳號：${userInfo.username || ''}`}</p>
                                 </div>
-                                <span class="text-xs px-2 py-1 bg-wabi-income/15 text-wabi-income border border-wabi-income/30 rounded-full font-medium">已連結</span>
+                                <span class="text-xs px-2 py-1 bg-wabi-income/15 text-wabi-income border border-wabi-income/30 rounded-full font-medium">已連線</span>
                             </div>
                             <button id="sync-sign-out-btn" class="w-full py-2 text-red-500 hover:text-red-600 text-sm font-medium border border-red-500/30 hover:border-red-500/50 hover:bg-red-500/10 rounded-lg transition-colors">
-                                <i class="fa-solid fa-right-from-bracket mr-1"></i> 登出 Google 帳號
+                                <i class="fa-solid fa-right-from-bracket mr-1"></i> 登出雲端帳號
                             </button>
                         `
                                 : `
-                            <div class="text-center py-4">
-                                <p class="text-sm text-wabi-text-secondary mb-3">登入 Google 帳號以使用雲端備份和同步功能</p>
-                                <button id="sync-sign-in-btn" class="px-6 py-2.5 bg-wabi-bg hover:bg-wabi-surface border border-wabi-border hover:border-wabi-primary text-wabi-text-primary rounded-lg shadow-sm hover:shadow transition-all flex items-center justify-center gap-2 mx-auto">
-                                    <svg width="18" height="18" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-                                    <span class="text-sm font-medium text-wabi-text-primary">使用 Google 帳號登入</span>
+                            <div class="space-y-3">
+                                <div class="flex border-b border-wabi-border mb-3">
+                                    <button id="sync-tab-login" type="button" class="flex-1 pb-2 text-sm font-medium transition-colors ${this.authMode === 'login' ? 'text-wabi-primary border-b-2 border-wabi-primary' : 'text-wabi-text-secondary hover:text-wabi-primary'}">
+                                        帳號登入
+                                    </button>
+                                    <button id="sync-tab-register" type="button" class="flex-1 pb-2 text-sm font-medium transition-colors ${this.authMode === 'register' ? 'text-wabi-primary border-b-2 border-wabi-primary' : 'text-wabi-text-secondary hover:text-wabi-primary'}">
+                                        註冊新帳號
+                                    </button>
+                                </div>
+                                <div class="space-y-3">
+                                    <div>
+                                        <label class="text-xs text-wabi-text-secondary block mb-1">使用者名稱</label>
+                                        <input type="text" id="sync-username-input" class="w-full px-3 py-2 rounded-lg border border-wabi-border bg-wabi-surface text-sm text-wabi-text-primary focus:ring-wabi-primary focus:border-wabi-primary" placeholder="請輸入使用者名稱" autocomplete="username" />
+                                    </div>
+                                    <div>
+                                        <label class="text-xs text-wabi-text-secondary block mb-1">密碼</label>
+                                        <input type="password" id="sync-password-input" class="w-full px-3 py-2 rounded-lg border border-wabi-border bg-wabi-surface text-sm text-wabi-text-primary focus:ring-wabi-primary focus:border-wabi-primary" placeholder="請輸入密碼 (至少 6 碼)" autocomplete="${this.authMode === 'register' ? 'new-password' : 'current-password'}" />
+                                    </div>
+                                    ${
+                                        this.authMode === 'register'
+                                            ? `
+                                    <div>
+                                        <label class="text-xs text-wabi-text-secondary block mb-1">確認密碼</label>
+                                        <input type="password" id="sync-confirm-password-input" class="w-full px-3 py-2 rounded-lg border border-wabi-border bg-wabi-surface text-sm text-wabi-text-primary focus:ring-wabi-primary focus:border-wabi-primary" placeholder="請再次輸入密碼" autocomplete="new-password" />
+                                    </div>
+                                    `
+                                            : ''
+                                    }
+                                </div>
+                                <button id="sync-sign-in-btn" class="w-full py-2.5 bg-wabi-bg hover:bg-wabi-surface border border-wabi-border hover:border-wabi-primary text-wabi-text-primary rounded-lg shadow-sm hover:shadow transition-all flex items-center justify-center gap-2">
+                                    <i class="fa-solid ${this.authMode === 'register' ? 'fa-user-plus' : 'fa-right-to-bracket'} text-wabi-text-primary"></i>
+                                    <span class="text-sm font-medium text-wabi-text-primary">${this.authMode === 'register' ? '建立帳號並登入' : '登入雲端帳號'}</span>
                                 </button>
+                                <p class="text-xs text-center text-wabi-text-secondary">資料庫安全加密連線儲存</p>
                             </div>
                         `
                         }
@@ -107,7 +136,7 @@ export class SyncSettingsPage {
                             <div class="flex items-center justify-between">
                                 <div>
                                     <p class="text-sm text-wabi-text-primary">自動備份</p>
-                                    <p class="text-xs text-wabi-text-secondary">定期自動備份到 Google Drive</p>
+                                    <p class="text-xs text-wabi-text-secondary">定期自動備份到 PostgreSQL 資料庫</p>
                                 </div>
                                 <label class="relative inline-flex items-center cursor-pointer">
                                     <input type="checkbox" id="sync-auto-backup-toggle" class="sr-only peer" ${autoBackupEnabled?.value ? 'checked' : ''}>
@@ -191,23 +220,100 @@ export class SyncSettingsPage {
             })
         }
 
-        // Sign in
+        // Auth Tabs
+        const tabLogin = document.getElementById('sync-tab-login')
+        const tabRegister = document.getElementById('sync-tab-register')
+        if (tabLogin) {
+            tabLogin.addEventListener('click', async () => {
+                this.authMode = 'login'
+                await this.render()
+            })
+        }
+        if (tabRegister) {
+            tabRegister.addEventListener('click', async () => {
+                this.authMode = 'register'
+                await this.render()
+            })
+        }
+
+        // Sign in / Register
         const signInBtn = document.getElementById('sync-sign-in-btn')
         if (signInBtn) {
             signInBtn.addEventListener('click', async () => {
+                const usernameInput = document.getElementById('sync-username-input')
+                const passwordInput = document.getElementById('sync-password-input')
+                const confirmPasswordInput = document.getElementById(
+                    'sync-confirm-password-input'
+                )
+
+                const username = usernameInput ? usernameInput.value.trim() : ''
+                const password = passwordInput ? passwordInput.value : ''
+
+                if (usernameInput && passwordInput) {
+                    if (this.authMode === 'register') {
+                        if (!username) {
+                            showToast('請輸入使用者名稱', 'error')
+                            return
+                        }
+                        if (!password || password.length < 6) {
+                            showToast('密碼長度需至少 6 個字元', 'error')
+                            return
+                        }
+                        const confirmPassword = confirmPasswordInput
+                            ? confirmPasswordInput.value
+                            : ''
+                        if (password !== confirmPassword) {
+                            showToast('兩次輸入的密碼不一致', 'error')
+                            return
+                        }
+                    } else {
+                        if (!username || !password) {
+                            showToast('請輸入使用者名稱與密碼', 'error')
+                            return
+                        }
+                    }
+                }
+
                 try {
                     signInBtn.disabled = true
                     signInBtn.innerHTML =
-                        '<i class="fa-solid fa-spinner fa-spin"></i> 登入中...'
-                    await this.app.syncService.signIn()
-                    showToast('Google 帳號登入成功！', 'success')
+                        '<i class="fa-solid fa-spinner fa-spin text-wabi-text-primary"></i> <span class="text-sm font-medium text-wabi-text-primary">處理中...</span>'
+
+                    if (this.authMode === 'register') {
+                        if (typeof this.app.syncService.register === 'function') {
+                            await this.app.syncService.register(username, password)
+                        } else {
+                            await this.app.syncService.signIn({ username, password })
+                        }
+                        showToast('帳號註冊並登入成功！', 'success')
+                    } else {
+                        if (
+                            username &&
+                            password &&
+                            typeof this.app.syncService.login === 'function'
+                        ) {
+                            await this.app.syncService.login(username, password)
+                        } else {
+                            await this.app.syncService.signIn({ username, password })
+                        }
+                        showToast('雲端帳號登入成功！', 'success')
+                    }
                     await this.render()
                 } catch (err) {
                     console.error('Sign in error:', err)
-                    showToast('登入失敗：' + err.message, 'error')
+                    showToast(
+                        (this.authMode === 'register' ? '註冊失敗：' : '登入失敗：') +
+                            err.message,
+                        'error'
+                    )
                     signInBtn.disabled = false
-                    signInBtn.innerHTML =
-                        '<svg width="18" height="18" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/></svg> <span class="text-sm font-medium text-wabi-text-primary">使用 Google 帳號登入</span>'
+                    const label =
+                        this.authMode === 'register' ? '建立帳號並登入' : '登入雲端帳號'
+                    const icon =
+                        this.authMode === 'register'
+                            ? 'fa-user-plus'
+                            : 'fa-right-to-bracket'
+                    signInBtn.innerHTML = `<i class="fa-solid ${icon} text-wabi-text-primary"></i> <span class="text-sm font-medium text-wabi-text-primary">${label}</span>`
                 }
             })
         }
@@ -218,12 +324,12 @@ export class SyncSettingsPage {
             signOutBtn.addEventListener('click', async () => {
                 if (
                     !(await customConfirm(
-                        '確定要登出 Google 帳號？這會停止自動同步。'
+                        '確定要登出雲端帳號？這會停止自動備份與同步。'
                     ))
                 )
                     return
                 await this.app.syncService.signOut()
-                showToast('已登出 Google 帳號', 'success')
+                showToast('已登出雲端帳號', 'success')
                 await this.render()
             })
         }
@@ -236,7 +342,11 @@ export class SyncSettingsPage {
                     backupBtn.disabled = true
                     backupBtn.innerHTML =
                         '<i class="fa-solid fa-spinner fa-spin"></i> 備份中...'
-                    await this.app.syncService.backupToDrive()
+                    if (typeof this.app.syncService.backupToCloud === 'function') {
+                        await this.app.syncService.backupToCloud()
+                    } else {
+                        await this.app.syncService.backupToDrive()
+                    }
                     showToast('備份成功！', 'success')
                     await this.render()
                 } catch (err) {
@@ -261,17 +371,22 @@ export class SyncSettingsPage {
                     }
                     // Show backup selection
                     const listHtml = backups
-                        .map((b, i) => {
+                        .map(b => {
                             const date = new Date(b.createdTime).toLocaleString(
                                 'zh-TW'
                             )
                             const sizeKB = b.size
                                 ? (parseInt(b.size) / 1024).toFixed(1)
                                 : '?'
-                            return `<button class="restore-backup-item w-full text-left p-3 hover:bg-wabi-bg rounded-lg border border-wabi-border" data-file-id="${b.id}">
-                            <p class="text-sm font-medium text-wabi-text-primary">${b.name}</p>
-                            <p class="text-xs text-wabi-text-secondary">${date} · ${sizeKB} KB</p>
-                        </button>`
+                            return `<div class="flex items-center justify-between p-3 hover:bg-wabi-bg rounded-lg border border-wabi-border gap-2">
+                                <button class="restore-backup-item flex-1 text-left min-w-0" data-file-id="${b.id}">
+                                    <p class="text-sm font-medium text-wabi-text-primary truncate">${b.name}</p>
+                                    <p class="text-xs text-wabi-text-secondary">${date} · ${sizeKB} KB</p>
+                                </button>
+                                <button class="delete-backup-item p-2 text-wabi-text-secondary hover:text-red-500 rounded-lg shrink-0 transition-colors" data-file-id="${b.id}" title="刪除此備份">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </div>`
                         })
                         .join('')
 
@@ -301,6 +416,30 @@ export class SyncSettingsPage {
                     })
 
                     modal
+                        .querySelectorAll('.delete-backup-item')
+                        .forEach(btn => {
+                            btn.addEventListener('click', async e => {
+                                e.stopPropagation()
+                                if (
+                                    !(await customConfirm(
+                                        '確定要刪除這筆雲端備份？刪除後無法復原。'
+                                    ))
+                                )
+                                    return
+                                const fileId = btn.dataset.fileId
+                                try {
+                                    await this.app.syncService.deleteBackup(fileId)
+                                    showToast('已刪除雲端備份', 'success')
+                                    closeModal(() => {
+                                        restoreBtn.click()
+                                    })
+                                } catch (err) {
+                                    showToast('刪除失敗：' + err.message, 'error')
+                                }
+                            })
+                        })
+
+                    modal
                         .querySelectorAll('.restore-backup-item')
                         .forEach(btn => {
                             btn.addEventListener('click', async () => {
@@ -316,10 +455,12 @@ export class SyncSettingsPage {
                                         '雲端還原',
                                         '正在從雲端下載備份...'
                                     )
-                                    progressModal.update(10, '正在從 Google Drive 下載備份...')
+                                    progressModal.update(10, '正在從雲端資料庫下載備份...')
                                     try {
                                         const backupData =
-                                            await this.app.syncService.restoreFromDrive(fileId)
+                                            typeof this.app.syncService.restoreFromCloud === 'function'
+                                                ? await this.app.syncService.restoreFromCloud(fileId)
+                                                : await this.app.syncService.restoreFromDrive(fileId)
                                         progressModal.update(25, '正在準備還原資料...')
                                         // Use the import logic — create a temporary blob
                                         const blob = new Blob(
@@ -349,7 +490,9 @@ export class SyncSettingsPage {
                                         if (result.success) {
                                             progressModal.update(88, '正在更新同步狀態...')
                                             // Reset sync history to avoid replaying old changes
-                                            await this.app.syncService.markAllRemoteChangesAsPulled()
+                                            if (typeof this.app.syncService.markAllRemoteChangesAsPulled === 'function') {
+                                                await this.app.syncService.markAllRemoteChangesAsPulled()
+                                            }
                                             progressModal.update(94, '正在重新載入系統設定...')
                                             await this.app.reloadAppData()
                                             progressModal.update(100, '備份還原成功！')

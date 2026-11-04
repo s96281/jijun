@@ -1,5 +1,15 @@
 // 版本更新日誌模組
 export const CHANGELOG = {
+    '2.1.8.15': {
+        date: '2026-11-05',
+        title: 'PostgreSQL 雲端備份與自訂帳號認證系統',
+        features: [
+            'PostgreSQL 雲端資料庫備份支援：將雲端備份遷移至 PostgreSQL 資料庫，支援完整 JSONB 備份儲存與歷程還原。',
+            '自訂帳號密碼註冊與登入：支援使用者自行建立專屬帳號與密碼，採用 PBKDF2 100,000 次疊代加鹽雜湊與狀態化 Session Token 機制，嚴密保護個人記帳資料安全。',
+            '雲端備份管理強化：支援備份歷程瀏覽、容量與裝置標識檢視、單筆備份刪除及備份自動保留修剪機制。',
+            'Cloudflare Workers 後端架構：後端 API 支援部署至 Cloudflare Workers (nodejs_compat)，無伺服器架構提供零冷啟動與高效能連線池。',
+        ],
+    },
     '2.1.8.14': {
         date: '2026-11-04',
         title: 'Android 自動更新與在線下載覆蓋安裝',

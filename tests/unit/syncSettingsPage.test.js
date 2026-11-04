@@ -66,4 +66,22 @@ describe('SyncSettingsPage Theme & Styling', () => {
         expect(containerHtml).toContain('測試使用者')
         expect(containerHtml).toContain('test@example.com')
     })
+
+    it('未登入時應有帳號名稱與密碼輸入框，並支援登入與註冊切換', async () => {
+        const page = new SyncSettingsPage(mockApp)
+        await page.render()
+
+        expect(document.getElementById('sync-username-input')).not.toBeNull()
+        expect(document.getElementById('sync-password-input')).not.toBeNull()
+        expect(document.getElementById('sync-confirm-password-input')).toBeNull()
+
+        const tabRegister = document.getElementById('sync-tab-register')
+        expect(tabRegister).not.toBeNull()
+        tabRegister.click()
+        await page.render()
+
+        expect(document.getElementById('sync-confirm-password-input')).not.toBeNull()
+        const signInBtn = document.getElementById('sync-sign-in-btn')
+        expect(signInBtn.textContent).toContain('建立帳號並登入')
+    })
 })

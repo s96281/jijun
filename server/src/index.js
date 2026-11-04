@@ -1,31 +1,35 @@
 /**
- * Easy Accounting Sync Server — Cloudflare Worker
+ * Easy Accounting Sync & Backup Server — PostgreSQL Backend
  *
- * 純 OAuth Proxy，僅負責：
- * 1. 用 authorization code 換取 access_token / refresh_token
- * 2. 刷新 access_token
+ * 支援功能：
+ * 1. 使用者自訂帳號密碼註冊與登入驗證 (PBKDF2 加鹽加密)
+ * 2. 狀態化 Token Session 管理
+ * 3. 雲端資料庫備份儲存 (JSONB)、清單檢視、按需還原與刪除
  *
- * 不儲存任何使用者資料，所有同步資料皆存放於 Google Drive appDataFolder。
- *
- * 環境變數 (Secrets):
- *   GOOGLE_CLIENT_ID     — Google OAuth 2.0 Client ID
- *   GOOGLE_CLIENT_SECRET — Google OAuth 2.0 Client Secret
- *
- * 環境變數 (Vars):
- *   ALLOWED_ORIGINS — 逗號分隔允許的 CORS origin 列表
+ * 環境變數 (Vars / Secrets):
+ *   DATABASE_URL    — PostgreSQL 連線字串 (支援 Prisma / Supabase / Neon / 自架)
+ *   ALLOWED_ORIGINS — 逗號分隔允許的 CORS origin 列表（預設 *）
+ *   PORT            — 監聽埠號（預設 8787）
  */
+
+import {
+    registerUser,
+    loginUser,
+    getUserFromToken,
+    refreshSession,
+    logoutUser,
+    saveUserBackup,
+    listUserBackups,
+    getUserBackup,
+    deleteUserBackup,
+    ensureTables,
+    getPool,
+} from './db.js'
 
 // ──────────────────────────────────────────────
 // Helpers
 // ──────────────────────────────────────────────
 
-/**
- * 建立 JSON 回應
- * @param {object} body  回應 body
- * @param {number} status  HTTP status code
- * @param {Headers} corsHeaders  CORS headers
- * @returns {Response}
- */
 function jsonResponse(body, status, corsHeaders) {
     return new Response(JSON.stringify(body), {
         status,
@@ -36,171 +40,49 @@ function jsonResponse(body, status, corsHeaders) {
     })
 }
 
-/**
- * 根據請求 Origin 產生 CORS headers
- * @param {Request} request
- * @param {string} allowedOriginsStr  逗號分隔允許的 origin
- * @returns {Headers}
- */
 function getCorsHeaders(request, allowedOriginsStr) {
-    const origin = request.headers.get('Origin') || ''
-    const allowedOrigins = (allowedOriginsStr || '')
+    const origin = request?.headers?.get('Origin') || ''
+    const allowedOrigins = (allowedOriginsStr || '*')
         .split(',')
         .map(o => o.trim())
     const headers = new Headers()
 
     if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
-        headers.set('Access-Control-Allow-Origin', origin)
+        headers.set('Access-Control-Allow-Origin', origin || '*')
     }
 
-    headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-    headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+    headers.set('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS')
+    headers.set(
+        'Access-Control-Allow-Headers',
+        'Content-Type, Authorization, X-Requested-With'
+    )
     headers.set('Access-Control-Max-Age', '86400')
     return headers
 }
 
-// ──────────────────────────────────────────────
-// Route Handlers
-// ──────────────────────────────────────────────
+function getBearerToken(request) {
+    const authHeader = request.headers.get('Authorization') || ''
+    const match = authHeader.match(/^Bearer\s+(.+)$/i)
+    return match ? match[1].trim() : null
+}
 
-/**
- * POST /api/auth/token
- * 用 Google authorization code 換取 tokens
- *
- * Request body: { code: string, redirect_uri: string }
- * Response:     { access_token, refresh_token, expires_in, token_type, id_token }
- */
-async function handleTokenExchange(request, env, corsHeaders) {
-    try {
-        const { code, redirect_uri } = await request.json()
-
-        if (!code) {
-            return jsonResponse(
-                { error: 'Missing authorization code' },
-                400,
-                corsHeaders
-            )
-        }
-
-        const tokenResponse = await fetch(
-            'https://oauth2.googleapis.com/token',
-            {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: new URLSearchParams({
-                    code,
-                    client_id: env.GOOGLE_CLIENT_ID,
-                    client_secret: env.GOOGLE_CLIENT_SECRET,
-                    redirect_uri: redirect_uri || 'postmessage',
-                    grant_type: 'authorization_code',
-                }),
-            }
-        )
-
-        const data = await tokenResponse.json()
-
-        if (!tokenResponse.ok) {
-            return jsonResponse(
-                { error: 'Token exchange failed', details: data },
-                tokenResponse.status,
-                corsHeaders
-            )
-        }
-
-        return jsonResponse(data, 200, corsHeaders)
-    } catch (err) {
-        return jsonResponse(
-            { error: 'Internal error', message: err.message },
-            500,
-            corsHeaders
-        )
+async function requireAuth(request, corsHeaders) {
+    const token = getBearerToken(request)
+    if (!token) {
+        return { errorResponse: jsonResponse({ error: '請先登入帳號' }, 401, corsHeaders) }
     }
-}
-
-/**
- * POST /api/auth/refresh
- * 刷新 Google access_token
- *
- * Request body: { refresh_token: string }
- * Response:     { access_token, expires_in, token_type }
- */
-async function handleTokenRefresh(request, env, corsHeaders) {
-    try {
-        const { refresh_token } = await request.json()
-
-        if (!refresh_token) {
-            return jsonResponse(
-                { error: 'Missing refresh_token' },
-                400,
-                corsHeaders
-            )
-        }
-
-        const tokenResponse = await fetch(
-            'https://oauth2.googleapis.com/token',
-            {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: new URLSearchParams({
-                    refresh_token,
-                    client_id: env.GOOGLE_CLIENT_ID,
-                    client_secret: env.GOOGLE_CLIENT_SECRET,
-                    grant_type: 'refresh_token',
-                }),
-            }
-        )
-
-        const data = await tokenResponse.json()
-
-        if (!tokenResponse.ok) {
-            return jsonResponse(
-                { error: 'Token refresh failed', details: data },
-                tokenResponse.status,
-                corsHeaders
-            )
-        }
-
-        return jsonResponse(data, 200, corsHeaders)
-    } catch (err) {
-        return jsonResponse(
-            { error: 'Internal error', message: err.message },
-            500,
-            corsHeaders
-        )
+    const user = await getUserFromToken(token)
+    if (!user) {
+        return { errorResponse: jsonResponse({ error: '登入權限已過期，請重新登入' }, 401, corsHeaders) }
     }
-}
-
-/**
- * GET /api/health
- * 健康檢查端點
- */
-function handleHealth(corsHeaders) {
-    return jsonResponse(
-        {
-            status: 'ok',
-            service: 'easy-accounting-sync',
-            timestamp: new Date().toISOString(),
-        },
-        200,
-        corsHeaders
-    )
+    return { user, token }
 }
 
 // ──────────────────────────────────────────────
-// Router
+// Main Request Handler
 // ──────────────────────────────────────────────
 
-/**
- * 主路由邏輯，可被 Worker fetch handler 及 standalone server 共用
- * @param {Request} request
- * @param {{ GOOGLE_CLIENT_ID: string, GOOGLE_CLIENT_SECRET: string, ALLOWED_ORIGINS: string }} env
- * @returns {Promise<Response>}
- */
-export async function handleRequest(request, env) {
+export async function handleRequest(request, env = {}) {
     const corsHeaders = getCorsHeaders(request, env.ALLOWED_ORIGINS)
     const url = new URL(request.url)
     const { pathname } = url
@@ -211,34 +93,163 @@ export async function handleRequest(request, env) {
         return new Response(null, { status: 204, headers: corsHeaders })
     }
 
-    // Route matching
-    if (method === 'POST' && pathname === '/api/auth/token') {
-        return handleTokenExchange(request, env, corsHeaders)
+    if (env.DATABASE_URL) {
+        getPool(env.DATABASE_URL)
     }
 
-    if (method === 'POST' && pathname === '/api/auth/refresh') {
-        return handleTokenRefresh(request, env, corsHeaders)
-    }
+    try {
+        // ── 註冊端點 ──
+        if (method === 'POST' && pathname === '/api/auth/register') {
+            const body = await request.json().catch(() => ({}))
+            const { username, password } = body
+            try {
+                const res = await registerUser(username, password)
+                return jsonResponse(res, 200, corsHeaders)
+            } catch (err) {
+                return jsonResponse({ error: err.message }, 400, corsHeaders)
+            }
+        }
 
-    if (method === 'GET' && pathname === '/api/health') {
-        return handleHealth(corsHeaders)
-    }
+        // ── 登入端點 ──
+        if (method === 'POST' && pathname === '/api/auth/login') {
+            const body = await request.json().catch(() => ({}))
+            const { username, password } = body
+            try {
+                const res = await loginUser(username, password)
+                return jsonResponse(res, 200, corsHeaders)
+            } catch (err) {
+                return jsonResponse({ error: err.message }, 401, corsHeaders)
+            }
+        }
 
-    // 404 fallback
-    return jsonResponse({ error: 'Not found' }, 404, corsHeaders)
+        // ── 登出端點 ──
+        if (method === 'POST' && pathname === '/api/auth/logout') {
+            const token = getBearerToken(request)
+            if (token) {
+                await logoutUser(token)
+            }
+            return jsonResponse({ success: true }, 200, corsHeaders)
+        }
+
+        // ── 刷新 Session 端點 ──
+        if (method === 'POST' && pathname === '/api/auth/refresh') {
+            let token = getBearerToken(request)
+            if (!token) {
+                const body = await request.json().catch(() => ({}))
+                token = body.token || body.refresh_token
+            }
+            if (!token) {
+                return jsonResponse({ error: '缺少 Token' }, 401, corsHeaders)
+            }
+            const refreshed = await refreshSession(token)
+            if (!refreshed) {
+                return jsonResponse({ error: 'Session 已失效，請重新登入' }, 401, corsHeaders)
+            }
+            return jsonResponse(refreshed, 200, corsHeaders)
+        }
+
+        // ── 取得當前使用者資訊 ──
+        if (method === 'GET' && pathname === '/api/auth/me') {
+            const { user, errorResponse } = await requireAuth(request, corsHeaders)
+            if (errorResponse) return errorResponse
+            return jsonResponse({ user }, 200, corsHeaders)
+        }
+
+        // ── 建立/上傳備份 ──
+        if (method === 'POST' && pathname === '/api/backup') {
+            const { user, errorResponse } = await requireAuth(request, corsHeaders)
+            if (errorResponse) return errorResponse
+
+            const body = await request.json().catch(() => ({}))
+            const { fileName, data, deviceId } = body
+            if (!data) {
+                return jsonResponse({ error: '缺少備份資料 (data)' }, 400, corsHeaders)
+            }
+
+            const cleanFileName =
+                fileName || `backup_${new Date().toISOString().replace(/[:.]/g, '-')}.json`
+
+            const saved = await saveUserBackup(user.id, cleanFileName, data, deviceId)
+            return jsonResponse({ success: true, backup: saved }, 200, corsHeaders)
+        }
+
+        // ── 列出所有備份清單 ──
+        if (method === 'GET' && pathname === '/api/backup') {
+            const { user, errorResponse } = await requireAuth(request, corsHeaders)
+            if (errorResponse) return errorResponse
+
+            const backups = await listUserBackups(user.id)
+            return jsonResponse({ backups }, 200, corsHeaders)
+        }
+
+        // ── 取得單一備份內容 (還原) ──
+        const singleBackupMatch = pathname.match(/^\/api\/backup\/(\d+)$/)
+        if (method === 'GET' && singleBackupMatch) {
+            const { user, errorResponse } = await requireAuth(request, corsHeaders)
+            if (errorResponse) return errorResponse
+
+            const backupId = parseInt(singleBackupMatch[1], 10)
+            const backup = await getUserBackup(backupId, user.id)
+            if (!backup) {
+                return jsonResponse({ error: '找不到指定的備份檔案' }, 404, corsHeaders)
+            }
+            return jsonResponse({ backup }, 200, corsHeaders)
+        }
+
+        // ── 刪除單一備份 ──
+        if (method === 'DELETE' && singleBackupMatch) {
+            const { user, errorResponse } = await requireAuth(request, corsHeaders)
+            if (errorResponse) return errorResponse
+
+            const backupId = parseInt(singleBackupMatch[1], 10)
+            const ok = await deleteUserBackup(backupId, user.id)
+            if (!ok) {
+                return jsonResponse({ error: '備份不存在或已被刪除' }, 404, corsHeaders)
+            }
+            return jsonResponse({ success: true }, 200, corsHeaders)
+        }
+
+        // ── 健康檢查 ──
+        if (method === 'GET' && pathname === '/api/health') {
+            try {
+                await ensureTables()
+                return jsonResponse(
+                    {
+                        status: 'ok',
+                        service: 'easy-accounting-postgres-sync',
+                        database: 'connected',
+                        timestamp: new Date().toISOString(),
+                    },
+                    200,
+                    corsHeaders
+                )
+            } catch (dbErr) {
+                return jsonResponse(
+                    {
+                        status: 'degraded',
+                        service: 'easy-accounting-postgres-sync',
+                        database: 'error',
+                        error: dbErr.message,
+                    },
+                    500,
+                    corsHeaders
+                )
+            }
+        }
+
+        // 404 fallback
+        return jsonResponse({ error: 'Endpoint not found' }, 404, corsHeaders)
+    } catch (err) {
+        console.error('[API Server Error]:', err)
+        return jsonResponse(
+            { error: '伺服器內部錯誤', message: err.message },
+            500,
+            corsHeaders
+        )
+    }
 }
 
-// ──────────────────────────────────────────────
-// Cloudflare Worker Entry Point
-// ──────────────────────────────────────────────
-
 export default {
-    /**
-     * Cloudflare Worker fetch handler
-     * @param {Request} request
-     * @param {object} env  Bindings (secrets + vars)
-     * @returns {Promise<Response>}
-     */
     async fetch(request, env) {
         return handleRequest(request, env)
     },

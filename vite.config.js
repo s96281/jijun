@@ -84,12 +84,73 @@ function serviceWorkerVersionPlugin() {
     }
 }
 
+/**
+ * Vite 插件：在 dev 模式下直接攔截 /api/* 請求並交由 server/src/index.js 處理
+ * 讓 npm run dev 開發環境免啟動獨立 8787 伺服器即可直接存取 PostgreSQL
+ */
+function postgresApiDevPlugin() {
+    return {
+        name: 'postgres-api-dev',
+        configureServer(server) {
+            server.middlewares.use(async (req, res, next) => {
+                if (req.url && req.url.startsWith('/api/')) {
+                    try {
+                        const { handleRequest } = await import('./server/src/index.js')
+                        const protocol = req.headers['x-forwarded-proto'] || 'http'
+                        const host = req.headers.host || 'localhost:3000'
+                        const url = `${protocol}://${host}${req.url}`
+
+                        const headers = new Headers()
+                        for (const [key, value] of Object.entries(req.headers)) {
+                            if (value) {
+                                headers.set(
+                                    key,
+                                    Array.isArray(value) ? value.join(', ') : value
+                                )
+                            }
+                        }
+
+                        const hasBody = req.method !== 'GET' && req.method !== 'HEAD'
+                        let body = null
+                        if (hasBody) {
+                            const chunks = []
+                            for await (const chunk of req) {
+                                chunks.push(chunk)
+                            }
+                            body = Buffer.concat(chunks)
+                        }
+
+                        const webRequest = new Request(url, {
+                            method: req.method,
+                            headers,
+                            body,
+                        })
+
+                        const webResponse = await handleRequest(webRequest)
+                        res.writeHead(
+                            webResponse.status,
+                            Object.fromEntries(webResponse.headers.entries())
+                        )
+                        const responseBody = await webResponse.text()
+                        res.end(responseBody)
+                    } catch (e) {
+                        next(e)
+                    }
+                } else {
+                    next()
+                }
+            })
+        },
+    }
+}
+
 export default defineConfig({
     plugins: [
         legacy({
             targets: ['defaults', 'not IE 11'],
         }),
         serviceWorkerVersionPlugin(),
+        postgresApiDevPlugin(),
     ],
     define: {
         // 編譯時常數：所有 src/ 下的 JS 都可直接使用

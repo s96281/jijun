@@ -1,11 +1,8 @@
 name = "easy-accounting-sync"
 main = "src/index.js"
-compatibility_date = "2024-01-01"
+compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
 [vars]
-ALLOWED_ORIGINS = "https://jijun.the-walking-fish.com,http://localhost:3000"
-
-# Secrets (set via `wrangler secret put`):
-#   GOOGLE_CLIENT_ID
-#   GOOGLE_CLIENT_SECRET
+DATABASE_URL = "postgres://4295e222564559a295613a2836d95e3aae99ca497af04086d4c062240d1b1759:sk_d36nxkeMXNoz5fNG3Ltc4@pooled.db.prisma.io:5432/postgres?sslmode=require"
+ALLOWED_ORIGINS = "*"
