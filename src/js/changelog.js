@@ -1,5 +1,12 @@
 // 版本更新日誌模組
 export const CHANGELOG = {
+    '2.1.8.10': {
+        date: '2026-11-04',
+        title: 'Android 匯出建置修正',
+        bugfixes: [
+            '修正 Android 備份匯出插件使用錯誤的 ActivityResult 匯入路徑，恢復 Release 建置。',
+        ],
+    },
     '2.1.8.9': {
         date: '2026-11-04',
         title: 'Android 匯出檔案位置選擇',
