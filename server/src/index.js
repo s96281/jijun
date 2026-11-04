@@ -23,7 +23,7 @@ import {
     getUserBackup,
     deleteUserBackup,
     ensureTables,
-    getPool,
+    createRequestPool,
 } from './db.js'
 
 // ──────────────────────────────────────────────
@@ -66,12 +66,12 @@ function getBearerToken(request) {
     return match ? match[1].trim() : null
 }
 
-async function requireAuth(request, corsHeaders) {
+async function requireAuth(request, corsHeaders, pool) {
     const token = getBearerToken(request)
     if (!token) {
         return { errorResponse: jsonResponse({ error: '請先登入帳號' }, 401, corsHeaders) }
     }
-    const user = await getUserFromToken(token)
+    const user = await getUserFromToken(token, pool)
     if (!user) {
         return { errorResponse: jsonResponse({ error: '登入權限已過期，請重新登入' }, 401, corsHeaders) }
     }
@@ -82,7 +82,7 @@ async function requireAuth(request, corsHeaders) {
 // Main Request Handler
 // ──────────────────────────────────────────────
 
-export async function handleRequest(request, env = {}) {
+export async function handleRequest(request, env = {}, ctx = null) {
     const corsHeaders = getCorsHeaders(request, env.ALLOWED_ORIGINS)
     const url = new URL(request.url)
     const { pathname } = url
@@ -93,9 +93,7 @@ export async function handleRequest(request, env = {}) {
         return new Response(null, { status: 204, headers: corsHeaders })
     }
 
-    if (env.DATABASE_URL) {
-        getPool(env.DATABASE_URL)
-    }
+    const pool = createRequestPool(env.DATABASE_URL)
 
     try {
         // ── 註冊端點 ──
@@ -103,7 +101,7 @@ export async function handleRequest(request, env = {}) {
             const body = await request.json().catch(() => ({}))
             const { username, password } = body
             try {
-                const res = await registerUser(username, password)
+                const res = await registerUser(username, password, pool)
                 return jsonResponse(res, 200, corsHeaders)
             } catch (err) {
                 return jsonResponse({ error: err.message }, 400, corsHeaders)
@@ -115,7 +113,7 @@ export async function handleRequest(request, env = {}) {
             const body = await request.json().catch(() => ({}))
             const { username, password } = body
             try {
-                const res = await loginUser(username, password)
+                const res = await loginUser(username, password, pool)
                 return jsonResponse(res, 200, corsHeaders)
             } catch (err) {
                 return jsonResponse({ error: err.message }, 401, corsHeaders)
@@ -126,7 +124,7 @@ export async function handleRequest(request, env = {}) {
         if (method === 'POST' && pathname === '/api/auth/logout') {
             const token = getBearerToken(request)
             if (token) {
-                await logoutUser(token)
+                await logoutUser(token, pool)
             }
             return jsonResponse({ success: true }, 200, corsHeaders)
         }
@@ -141,7 +139,7 @@ export async function handleRequest(request, env = {}) {
             if (!token) {
                 return jsonResponse({ error: '缺少 Token' }, 401, corsHeaders)
             }
-            const refreshed = await refreshSession(token)
+            const refreshed = await refreshSession(token, pool)
             if (!refreshed) {
                 return jsonResponse({ error: 'Session 已失效，請重新登入' }, 401, corsHeaders)
             }
@@ -150,14 +148,14 @@ export async function handleRequest(request, env = {}) {
 
         // ── 取得當前使用者資訊 ──
         if (method === 'GET' && pathname === '/api/auth/me') {
-            const { user, errorResponse } = await requireAuth(request, corsHeaders)
+            const { user, errorResponse } = await requireAuth(request, corsHeaders, pool)
             if (errorResponse) return errorResponse
             return jsonResponse({ user }, 200, corsHeaders)
         }
 
         // ── 建立/上傳備份 ──
         if (method === 'POST' && pathname === '/api/backup') {
-            const { user, errorResponse } = await requireAuth(request, corsHeaders)
+            const { user, errorResponse } = await requireAuth(request, corsHeaders, pool)
             if (errorResponse) return errorResponse
 
             const body = await request.json().catch(() => ({}))
@@ -169,27 +167,27 @@ export async function handleRequest(request, env = {}) {
             const cleanFileName =
                 fileName || `backup_${new Date().toISOString().replace(/[:.]/g, '-')}.json`
 
-            const saved = await saveUserBackup(user.id, cleanFileName, data, deviceId)
+            const saved = await saveUserBackup(user.id, cleanFileName, data, deviceId, pool)
             return jsonResponse({ success: true, backup: saved }, 200, corsHeaders)
         }
 
         // ── 列出所有備份清單 ──
         if (method === 'GET' && pathname === '/api/backup') {
-            const { user, errorResponse } = await requireAuth(request, corsHeaders)
+            const { user, errorResponse } = await requireAuth(request, corsHeaders, pool)
             if (errorResponse) return errorResponse
 
-            const backups = await listUserBackups(user.id)
+            const backups = await listUserBackups(user.id, pool)
             return jsonResponse({ backups }, 200, corsHeaders)
         }
 
         // ── 取得單一備份內容 (還原) ──
         const singleBackupMatch = pathname.match(/^\/api\/backup\/(\d+)$/)
         if (method === 'GET' && singleBackupMatch) {
-            const { user, errorResponse } = await requireAuth(request, corsHeaders)
+            const { user, errorResponse } = await requireAuth(request, corsHeaders, pool)
             if (errorResponse) return errorResponse
 
             const backupId = parseInt(singleBackupMatch[1], 10)
-            const backup = await getUserBackup(backupId, user.id)
+            const backup = await getUserBackup(backupId, user.id, pool)
             if (!backup) {
                 return jsonResponse({ error: '找不到指定的備份檔案' }, 404, corsHeaders)
             }
@@ -198,11 +196,11 @@ export async function handleRequest(request, env = {}) {
 
         // ── 刪除單一備份 ──
         if (method === 'DELETE' && singleBackupMatch) {
-            const { user, errorResponse } = await requireAuth(request, corsHeaders)
+            const { user, errorResponse } = await requireAuth(request, corsHeaders, pool)
             if (errorResponse) return errorResponse
 
             const backupId = parseInt(singleBackupMatch[1], 10)
-            const ok = await deleteUserBackup(backupId, user.id)
+            const ok = await deleteUserBackup(backupId, user.id, pool)
             if (!ok) {
                 return jsonResponse({ error: '備份不存在或已被刪除' }, 404, corsHeaders)
             }
@@ -212,7 +210,7 @@ export async function handleRequest(request, env = {}) {
         // ── 健康檢查 ──
         if (method === 'GET' && pathname === '/api/health') {
             try {
-                await ensureTables()
+                await ensureTables(pool, true)
                 return jsonResponse(
                     {
                         status: 'ok',
@@ -246,11 +244,17 @@ export async function handleRequest(request, env = {}) {
             500,
             corsHeaders
         )
+    } finally {
+        if (ctx && typeof ctx.waitUntil === 'function') {
+            ctx.waitUntil(pool.end().catch(() => {}))
+        } else {
+            await pool.end().catch(() => {})
+        }
     }
 }
 
 export default {
-    async fetch(request, env) {
-        return handleRequest(request, env)
+    async fetch(request, env, ctx) {
+        return handleRequest(request, env, ctx)
     },
 }

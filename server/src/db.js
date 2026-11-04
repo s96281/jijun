@@ -8,24 +8,53 @@ export const DEFAULT_DATABASE_URL =
 
 let poolInstance = null
 
-export function getPool(connectionString) {
-    if (!poolInstance) {
-        const connStr =
-            connectionString ||
-            process.env.DATABASE_URL ||
-            DEFAULT_DATABASE_URL
-        poolInstance = new Pool({
-            connectionString: connStr,
-            ssl: { rejectUnauthorized: false },
-            max: 10,
-            idleTimeoutMillis: 30000,
-        })
-    }
-    return poolInstance
+export function createRequestPool(connectionString) {
+    const connStr =
+        connectionString ||
+        process.env.DATABASE_URL ||
+        DEFAULT_DATABASE_URL
+    return new Pool({
+        connectionString: connStr,
+        ssl: { rejectUnauthorized: false },
+        max: 1, // 每個請求獨立連線，避免 Serverless 凍結殘留死連線
+        connectionTimeoutMillis: 5000,
+        idleTimeoutMillis: 1000,
+    })
 }
 
-export async function ensureTables(pool = getPool()) {
-    await pool.query(`
+export function getPool(connectionString) {
+    return createRequestPool(connectionString)
+}
+
+export async function safeQuery(pool, text, params = []) {
+    let lastError = null
+    for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+            return await pool.query(text, params)
+        } catch (err) {
+            lastError = err
+            const msg = String(err?.message || '').toLowerCase()
+            const isRetryable =
+                msg.includes('upstream') ||
+                msg.includes('connection') ||
+                msg.includes('timeout') ||
+                msg.includes('socket')
+            if (attempt === 0 && isRetryable) {
+                console.warn('[DB] Retrying query due to upstream connection glitch:', err.message)
+                await new Promise(r => setTimeout(r, 600))
+                continue
+            }
+            throw err
+        }
+    }
+    throw lastError
+}
+
+let tablesEnsured = false
+
+export async function ensureTables(pool = getPool(), force = false) {
+    if (tablesEnsured && !force) return
+    await safeQuery(pool, `
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         username VARCHAR(100) UNIQUE NOT NULL,
@@ -54,6 +83,7 @@ export async function ensureTables(pool = getPool()) {
       CREATE INDEX IF NOT EXISTS idx_backups_user_id ON backups(user_id);
       CREATE INDEX IF NOT EXISTS idx_backups_created_at ON backups(created_at DESC);
     `)
+    tablesEnsured = true
 }
 
 export function hashPassword(password) {
@@ -87,7 +117,8 @@ export async function registerUser(username, password, pool = getPool()) {
 
     await ensureTables(pool)
 
-    const existing = await pool.query(
+    const existing = await safeQuery(
+        pool,
         'SELECT id FROM users WHERE username = $1 LIMIT 1;',
         [cleanUsername]
     )
@@ -96,14 +127,16 @@ export async function registerUser(username, password, pool = getPool()) {
     }
 
     const passwordHash = hashPassword(password)
-    const insertRes = await pool.query(
+    const insertRes = await safeQuery(
+        pool,
         'INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING id, username, created_at;',
         [cleanUsername, passwordHash]
     )
     const user = insertRes.rows[0]
 
     const token = crypto.randomBytes(32).toString('hex')
-    await pool.query(
+    await safeQuery(
+        pool,
         "INSERT INTO sessions (token, user_id, expires_at) VALUES ($1, $2, NOW() + INTERVAL '30 days');",
         [token, user.id]
     )
@@ -119,7 +152,8 @@ export async function loginUser(username, password, pool = getPool()) {
 
     await ensureTables(pool)
 
-    const userRes = await pool.query(
+    const userRes = await safeQuery(
+        pool,
         'SELECT id, username, password_hash FROM users WHERE username = $1 LIMIT 1;',
         [cleanUsername]
     )
@@ -134,7 +168,8 @@ export async function loginUser(username, password, pool = getPool()) {
     }
 
     const token = crypto.randomBytes(32).toString('hex')
-    await pool.query(
+    await safeQuery(
+        pool,
         "INSERT INTO sessions (token, user_id, expires_at) VALUES ($1, $2, NOW() + INTERVAL '30 days');",
         [token, user.id]
     )
@@ -145,7 +180,8 @@ export async function loginUser(username, password, pool = getPool()) {
 export async function getUserFromToken(token, pool = getPool()) {
     if (!token) return null
     await ensureTables(pool)
-    const res = await pool.query(
+    const res = await safeQuery(
+        pool,
         'SELECT u.id, u.username FROM sessions s JOIN users u ON s.user_id = u.id WHERE s.token = $1 AND s.expires_at > NOW();',
         [token]
     )
@@ -154,7 +190,7 @@ export async function getUserFromToken(token, pool = getPool()) {
 
 export async function logoutUser(token, pool = getPool()) {
     if (!token) return
-    await pool.query('DELETE FROM sessions WHERE token = $1;', [token])
+    await safeQuery(pool, 'DELETE FROM sessions WHERE token = $1;', [token])
 }
 
 export async function refreshSession(token, pool = getPool()) {
@@ -162,7 +198,8 @@ export async function refreshSession(token, pool = getPool()) {
     await ensureTables(pool)
     const user = await getUserFromToken(token, pool)
     if (!user) return null
-    await pool.query(
+    await safeQuery(
+        pool,
         "UPDATE sessions SET expires_at = NOW() + INTERVAL '30 days' WHERE token = $1;",
         [token]
     )
@@ -178,13 +215,15 @@ export async function saveUserBackup(userId, fileName, data, deviceId, pool = ge
     const jsonStr = typeof data === 'string' ? data : JSON.stringify(data)
     const sizeBytes = Buffer.byteLength(jsonStr, 'utf8')
 
-    const res = await pool.query(
+    const res = await safeQuery(
+        pool,
         'INSERT INTO backups (user_id, file_name, data, size_bytes, device_id) VALUES ($1, $2, $3, $4, $5) RETURNING id, file_name, size_bytes, created_at, device_id;',
         [userId, fileName, jsonStr, sizeBytes, deviceId || null]
     )
 
     // 清理舊備份，每個使用者最多保留最新的 15 個備份
-    await pool.query(
+    await safeQuery(
+        pool,
         `DELETE FROM backups WHERE id IN (
             SELECT id FROM backups WHERE user_id = $1 ORDER BY created_at DESC OFFSET 15
         );`,
@@ -196,7 +235,8 @@ export async function saveUserBackup(userId, fileName, data, deviceId, pool = ge
 
 export async function listUserBackups(userId, pool = getPool()) {
     await ensureTables(pool)
-    const res = await pool.query(
+    const res = await safeQuery(
+        pool,
         'SELECT id, file_name, size_bytes, created_at, device_id FROM backups WHERE user_id = $1 ORDER BY created_at DESC;',
         [userId]
     )
@@ -205,7 +245,8 @@ export async function listUserBackups(userId, pool = getPool()) {
 
 export async function getUserBackup(id, userId, pool = getPool()) {
     await ensureTables(pool)
-    const res = await pool.query(
+    const res = await safeQuery(
+        pool,
         'SELECT id, file_name, data, size_bytes, created_at, device_id FROM backups WHERE id = $1 AND user_id = $2;',
         [id, userId]
     )
@@ -214,7 +255,8 @@ export async function getUserBackup(id, userId, pool = getPool()) {
 
 export async function deleteUserBackup(id, userId, pool = getPool()) {
     await ensureTables(pool)
-    const res = await pool.query(
+    const res = await safeQuery(
+        pool,
         'DELETE FROM backups WHERE id = $1 AND user_id = $2 RETURNING id;',
         [id, userId]
     )
