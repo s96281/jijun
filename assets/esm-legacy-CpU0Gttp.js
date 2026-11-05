@@ -1,0 +1,1 @@
+(function(){System.register([`./main-legacy-DA252fdf.js`],function(e,t){var n,r;return{setters:[function(e){n=e.n,r=e.r}],execute:function(){e(`App`,n(`App`,{web:()=>r(()=>t.import(`./web-legacy-BtVbvyF3.js`).then(e=>new e.AppWeb),void 0)}))}}})})();
