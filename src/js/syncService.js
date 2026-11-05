@@ -803,7 +803,12 @@ export class SyncService {
             const queryParam = pageToken ? `?pageToken=${encodeURIComponent(pageToken)}` : ''
             const res = await fetch(`${serverUrl}/api/backup${queryParam}`, {
                 method: 'GET',
-                headers: { Authorization: `Bearer ${this.accessToken}` },
+                cache: 'no-store',
+                headers: {
+                    Authorization: `Bearer ${this.accessToken}`,
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    Pragma: 'no-cache',
+                },
             })
 
             if (!res.ok) {
@@ -845,7 +850,12 @@ export class SyncService {
             `${serverUrl}/api/backup/${encodeURIComponent(backupId)}`,
             {
                 method: 'GET',
-                headers: { Authorization: `Bearer ${this.accessToken}` },
+                cache: 'no-store',
+                headers: {
+                    Authorization: `Bearer ${this.accessToken}`,
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    Pragma: 'no-cache',
+                },
             }
         )
 
@@ -880,7 +890,12 @@ export class SyncService {
             `${serverUrl}/api/backup/${encodeURIComponent(backupId)}`,
             {
                 method: 'DELETE',
-                headers: { Authorization: `Bearer ${this.accessToken}` },
+                cache: 'no-store',
+                headers: {
+                    Authorization: `Bearer ${this.accessToken}`,
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    Pragma: 'no-cache',
+                },
             }
         )
 

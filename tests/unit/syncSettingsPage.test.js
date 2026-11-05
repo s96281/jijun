@@ -147,4 +147,45 @@ describe('SyncSettingsPage Theme & Styling', () => {
 
         expect(savedUrl).toBe('https://easy-accounting-sync.workers.cloudflare.henry-yo.top')
     })
+
+    it('點擊刪除備份時，確認後應呼叫 deleteBackup 並立即從 DOM 列表中移除該項目', async () => {
+        mockSyncService.isSignedIn = () => true
+        mockSyncService.userInfo = { name: 'User' }
+        mockSyncService.listBackups = async () => [
+            { id: '101', name: 'backup_1.json', size: 1024, createdTime: '2026-11-01T00:00:00Z' },
+            { id: '102', name: 'backup_2.json', size: 2048, createdTime: '2026-11-02T00:00:00Z' }
+        ]
+        const deletedIds = []
+        mockSyncService.deleteBackup = async (id) => {
+            deletedIds.push(id)
+            return true
+        }
+
+        const page = new SyncSettingsPage(mockApp)
+        await page.render()
+
+        const restoreBtn = document.getElementById('sync-restore-btn')
+        expect(restoreBtn).not.toBeNull()
+        await restoreBtn.click()
+
+        const rowsBefore = document.querySelectorAll('.backup-item-row')
+        expect(rowsBefore.length).toBe(2)
+
+        // 點擊第一筆備份的刪除按鈕
+        const deleteBtn = rowsBefore[0].querySelector('.delete-backup-item')
+        deleteBtn.click()
+
+        // customConfirm 會在 body 產生 confirm modal
+        const confirmOkBtn = document.querySelector('.custom-confirm-ok')
+        expect(confirmOkBtn).not.toBeNull()
+        confirmOkBtn.click()
+
+        // 等待非同步 deleteBackup 與 DOM 移除
+        await new Promise(r => setTimeout(r, 250))
+
+        expect(deletedIds).toEqual(['101'])
+        const rowsAfter = document.querySelectorAll('.backup-item-row')
+        expect(rowsAfter.length).toBe(1)
+        expect(rowsAfter[0].dataset.fileId).toBe('102')
+    })
 })

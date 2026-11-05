@@ -1,5 +1,11 @@
 # 輕鬆記帳 2.0 - 更新日誌
 
+## v2.1.8.18 (2026-11-05) - 備份管理清單刪除即時同步與快取修復
+
+- **修復雲端備份清單刪除殘留**：在選擇備份彈窗中點擊刪除並確認後，立即在 DOM 列表中即時平滑移除該列，無須關閉視窗重載；若無剩餘備份即刻切換為空狀態。
+- **全面禁用備份 API 快取**：後端 API 回應與前端 HTTP 請求全面標註 `Cache-Control: no-store` 與 `cache: 'no-store'`，徹底杜絕 Cloudflare CDN 與瀏覽器快取導致已刪除項目仍在清單顯示的問題。
+- **版本號同步**：應用程式版本升級至 v2.1.8.18，Android versionName (2.1.8.18) 與 versionCode (21818)。
+
 ## v2.1.8.17 (2026-11-05) - Cloudflare Workers 預設同步與全量備份統計
 
 - **設定預設同步伺服器**：預設同步伺服器 URL 更新為 `easy-accounting-sync.workers.cloudflare.henry-yo.top`，自動處理 https 協定與結尾斜線清理。

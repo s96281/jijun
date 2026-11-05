@@ -1,5 +1,13 @@
 // 版本更新日誌模組
 export const CHANGELOG = {
+    '2.1.8.18': {
+        date: '2026-11-05',
+        title: '備份管理清單刪除即時同步與快取修復',
+        improvements: [
+            '修復雲端備份清單刪除殘留問題：於選擇備份彈窗中刪除備份成功後，直接以平滑動畫從 DOM 列表中精確移除該項目，無須強制關閉彈窗再重新載入，若清單空了即時呈現空狀態。',
+            '全面禁用備份 API 快取：後端 API 回應與前端 HTTP 請求全面加入 Cache-Control: no-store 與 cache: no-store，徹底杜絕 Cloudflare CDN 與瀏覽器快取導致已刪除備份在列表中幽靈殘留的現象。',
+        ],
+    },
     '2.1.8.17': {
         date: '2026-11-05',
         title: 'Cloudflare Workers 預設同步與全量備份統計',

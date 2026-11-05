@@ -445,7 +445,7 @@ export class SyncSettingsPage {
                             const sizeText = b.size
                                 ? formatBytes(parseInt(b.size, 10))
                                 : '未知大小'
-                            return `<div class="flex items-center justify-between p-3 hover:bg-wabi-bg rounded-lg border border-wabi-border gap-2">
+                            return `<div class="backup-item-row flex items-center justify-between p-3 hover:bg-wabi-bg rounded-lg border border-wabi-border gap-2 transition-all duration-200" data-file-id="${b.id}">
                                 <button class="restore-backup-item flex-1 text-left min-w-0 cursor-pointer" data-file-id="${b.id}">
                                     <p class="text-sm font-medium text-wabi-text-primary truncate">${b.name}</p>
                                     <p class="text-xs text-wabi-text-secondary">${date} · ${sizeText}</p>
@@ -468,7 +468,7 @@ export class SyncSettingsPage {
                                     <i class="fa-solid fa-xmark text-xl"></i>
                                 </button>
                             </div>
-                            <div class="space-y-2">${listHtml}</div>
+                            <div id="backup-list-container" class="space-y-2">${listHtml}</div>
                         </div>
                     `
                     document.body.appendChild(modal)
@@ -494,14 +494,43 @@ export class SyncSettingsPage {
                                 )
                                     return
                                 const fileId = btn.dataset.fileId
+                                const originalHtml = btn.innerHTML
                                 try {
+                                    btn.disabled = true
+                                    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-xs"></i>'
+
                                     await this.app.syncService.deleteBackup(fileId)
                                     showToast('已刪除雲端備份', 'success')
-                                    closeModal(() => {
-                                        restoreBtn.click()
-                                    })
+
+                                    // 立即從 DOM 列表中移除該項目，無需關閉彈窗重開
+                                    const row = btn.closest('.backup-item-row')
+                                    if (row) {
+                                        row.style.opacity = '0'
+                                        row.style.transform = 'scale(0.95)'
+                                        setTimeout(() => {
+                                            row.remove()
+                                            const container = modal.querySelector('#backup-list-container')
+                                            if (
+                                                container &&
+                                                container.querySelectorAll('.backup-item-row').length === 0
+                                            ) {
+                                                container.innerHTML = `
+                                                    <div class="py-8 text-center text-wabi-text-secondary">
+                                                        <i class="fa-solid fa-cloud-arrow-up text-3xl mb-2 block opacity-40"></i>
+                                                        <p class="text-sm">沒有找到任何備份</p>
+                                                    </div>
+                                                `
+                                            }
+                                        }, 150)
+                                    }
+
+                                    // 背景刷新主頁面的備份卡片
+                                    this.render().catch(() => {})
                                 } catch (err) {
+                                    console.error('Delete backup error:', err)
                                     showToast('刪除失敗：' + err.message, 'error')
+                                    btn.disabled = false
+                                    btn.innerHTML = originalHtml
                                 }
                             })
                         })
