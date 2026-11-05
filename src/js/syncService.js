@@ -138,7 +138,11 @@ export class SyncService {
             const serverSetting =
                 await this.dataService.getSetting('sync_server_url')
             if (serverSetting?.value) {
-                this.serverUrl = serverSetting.value
+                let sUrl = String(serverSetting.value).trim().replace(/\/+$/, '')
+                if (!/^https?:\/\//i.test(sUrl)) {
+                    sUrl = `https://${sUrl}`
+                }
+                this.serverUrl = sUrl
             }
 
             // 如果已登入且 token 快過期，嘗試刷新
@@ -214,7 +218,7 @@ export class SyncService {
             throw new Error('密碼長度需至少 6 個字元')
         }
 
-        const serverUrl = this.serverUrl.replace(/\/+$/, '')
+        const serverUrl = this.getApiBaseUrl()
         const res = await fetch(`${serverUrl}/api/auth/register`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -251,7 +255,7 @@ export class SyncService {
             throw new Error('請輸入使用者名稱與密碼')
         }
 
-        const serverUrl = this.serverUrl.replace(/\/+$/, '')
+        const serverUrl = this.getApiBaseUrl()
         const res = await fetch(`${serverUrl}/api/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -439,7 +443,7 @@ export class SyncService {
      * @param {string} code  Authorization code from Google
      */
     async handleAuthCallback(code) {
-        const serverUrl = this.serverUrl.replace(/\/+$/, '')
+        const serverUrl = this.getApiBaseUrl()
         const res = await fetch(`${serverUrl}/api/auth/token`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -473,7 +477,7 @@ export class SyncService {
         if (!token) throw new Error('No refresh token')
 
         try {
-            const serverUrl = this.serverUrl.replace(/\/+$/, '')
+            const serverUrl = this.getApiBaseUrl()
             const res = await fetch(`${serverUrl}/api/auth/refresh`, {
                 method: 'POST',
                 headers: {
@@ -539,7 +543,7 @@ export class SyncService {
     async signOut() {
         if (this.accessToken) {
             try {
-                const serverUrl = this.serverUrl.replace(/\/+$/, '')
+                const serverUrl = this.getApiBaseUrl()
                 await fetch(`${serverUrl}/api/auth/logout`, {
                     method: 'POST',
                     headers: {
@@ -650,11 +654,23 @@ export class SyncService {
     // ──────────────────────────────────────────────
 
     /**
+     * 取得已清理並確保包含 https:// 或 http:// 協議的 API 伺服器基礎 URL
+     * @returns {string}
+     */
+    getApiBaseUrl() {
+        let url = (this.serverUrl || DEFAULT_SERVER_URL).trim().replace(/\/+$/, '')
+        if (!/^https?:\/\//i.test(url)) {
+            url = `https://${url}`
+        }
+        return url
+    }
+
+    /**
      * 取得同步伺服器 URL
      * @returns {string}
      */
     getServerUrl() {
-        return this.serverUrl
+        return this.getApiBaseUrl()
     }
 
     /**
@@ -727,7 +743,7 @@ export class SyncService {
         exportData.backup_timestamp = Date.now()
 
         const fileName = `backup_${new Date().toISOString().replace(/[:.]/g, '-')}.json`
-        const serverUrl = this.serverUrl.replace(/\/+$/, '')
+        const serverUrl = this.getApiBaseUrl()
 
         const payloadStr = JSON.stringify({
             fileName,
@@ -829,7 +845,7 @@ export class SyncService {
     async listBackups() {
         await this.ensureValidToken()
 
-        const serverUrl = this.serverUrl.replace(/\/+$/, '')
+        const serverUrl = this.getApiBaseUrl()
         const allFiles = []
         let pageToken = null
 
@@ -883,7 +899,7 @@ export class SyncService {
     async restoreFromCloud(backupId) {
         await this.ensureValidToken()
 
-        const serverUrl = this.serverUrl.replace(/\/+$/, '')
+        const serverUrl = this.getApiBaseUrl()
         const res = await this._fetchWithRetry(
             `${serverUrl}/api/backup/${encodeURIComponent(backupId)}`,
             {
@@ -927,7 +943,7 @@ export class SyncService {
     async deleteBackup(backupId) {
         await this.ensureValidToken()
 
-        const serverUrl = this.serverUrl.replace(/\/+$/, '')
+        const serverUrl = this.getApiBaseUrl()
         const res = await this._fetchWithRetry(
             `${serverUrl}/api/backup/${encodeURIComponent(backupId)}`,
             {

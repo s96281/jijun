@@ -929,6 +929,28 @@ export class EasyAccountingApp {
 
     async registerServiceWorker() {
         if ('serviceWorker' in navigator) {
+            // 在 Capacitor 原生 Android App 中，靜態資源已打包在本地 APK 內，
+            // 避免 Service Worker 攔截跨域 API 請求造成快取與 503 異常，
+            // 若偵測到原生平台則主動註銷 Service Worker 並清理相關快取。
+            if (window.Capacitor?.isNativePlatform?.()) {
+                try {
+                    const registrations = await navigator.serviceWorker.getRegistrations()
+                    for (const reg of registrations) {
+                        await reg.unregister()
+                    }
+                    if (typeof caches !== 'undefined') {
+                        const keys = await caches.keys()
+                        for (const key of keys) {
+                            await caches.delete(key)
+                        }
+                    }
+                    console.log('[Native] Service Worker unregistered and caches cleared')
+                } catch (e) {
+                    console.warn('[Native] Failed to unregister SW:', e)
+                }
+                return
+            }
+
             try {
                 const registration =
                     await navigator.serviceWorker.register('/serviceWorker.js')

@@ -1,5 +1,12 @@
 # 輕鬆記帳 2.0 - 更新日誌
 
+## v2.1.8.21 (2026-11-05) - Service Worker API 旁路繞行與伺服器 URL 協議自動補全
+
+- **排除 Service Worker 對 API 請求的攔截**：Service Worker 全面排除所有 `/api/` 請求、Cloudflare Workers 伺服器請求與 `no-store`/`Authorization` 標頭請求，100% 走原生網路傳輸，徹底解決 `GET /api/backup` 被快取攔截導致 APP 未實際向伺服器發送請求及拋出 503 偽錯誤的根因。
+- **Capacitor 原生 App 隔離**：在 Android 原生應用中偵測到原生平台時自動註銷 Service Worker 並清理 CacheStorage，杜絕 WebView 網路棧受快取層干擾。
+- **伺服器 URL 協議強制自動補全**：強化 `getApiBaseUrl()` 邏輯，確保伺服器網址一律自動補全 `https://` 前綴並去除末尾斜線，防止相對路徑請求誤發送至本機 localhost。
+- **版本號同步**：應用程式版本升級至 v2.1.8.21，Android versionName (2.1.8.21) 與 versionCode (21821)。
+
 ## v2.1.8.20 (2026-11-05) - CORS 標頭全面放寬與還原按鈕載入狀態保護
 
 - **徹底解決 CORS Preflight 攔截**：後端 `Access-Control-Allow-Headers` 改為萬用字元 `*`，前端移除非必要的自訂標頭，避免跨域請求觸發複雜預檢被 Cloudflare 拋出 503。

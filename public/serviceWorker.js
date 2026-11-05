@@ -79,6 +79,19 @@ self.addEventListener('activate', event => {
                     })
                 )
             }),
+            // 清理 DYNAMIC_CACHE 中殘留的 API 請求快取
+            caches.open(DYNAMIC_CACHE).then(cache => {
+                return cache.keys().then(requests => {
+                    return Promise.all(
+                        requests.map(req => {
+                            const u = new URL(req.url)
+                            if (u.pathname.includes('/api/') || u.hostname.includes('workers.cloudflare')) {
+                                return cache.delete(req)
+                            }
+                        })
+                    )
+                })
+            }).catch(() => {}),
             // 立即控制所有客戶端
             self.clients.claim(),
             // 啟用時更新所有小工具
@@ -116,9 +129,18 @@ self.addEventListener('fetch', event => {
         return
     }
 
-    // GitHub Release API 必須即時取得最新版本，不能被 cache-first 策略保留舊回應。
-    if (new URL(event.request.url).hostname === 'api.github.com') {
-        event.respondWith(fetch(event.request))
+    const reqUrl = new URL(event.request.url)
+
+    // API 請求與雲端同步伺服器請求絕對不被 Service Worker 攔截或快取，一律走原生網路
+    if (
+        reqUrl.pathname.startsWith('/api/') ||
+        reqUrl.pathname.includes('/api/') ||
+        reqUrl.hostname.includes('workers.cloudflare') ||
+        reqUrl.hostname === 'api.github.com' ||
+        event.request.headers.has('Authorization') ||
+        event.request.cache === 'no-store' ||
+        event.request.cache === 'no-cache'
+    ) {
         return
     }
 
