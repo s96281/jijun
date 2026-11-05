@@ -1,5 +1,11 @@
 # 輕鬆記帳 2.0 - 更新日誌
 
+## v2.1.8.22 (2026-11-05) - 實驗功能設定項目簡化與清理
+
+- **設定頁實驗功能精簡**：實驗功能卡片內僅保留「週期性交易」、「關閉計算機功能」、「明細預設時間範圍」與「每日提醒」四個項目，其餘實驗項目開關已全面刪除，介面更簡潔專注。
+- **契約測試與服務對齊**：完善 `SyncService` 之 `setAutoBackupEnabled`、`setAutoBackupInterval`、`setAutoSyncEnabled` 與 `sync` 方法封裝，確保設定頁與服務層契約一致性。
+- **版本號同步**：應用程式版本升級至 v2.1.8.22，Android versionName (2.1.8.22) 與 versionCode (21822)。
+
 ## v2.1.8.21 (2026-11-05) - Service Worker API 旁路繞行與伺服器 URL 協議自動補全
 
 - **排除 Service Worker 對 API 請求的攔截**：Service Worker 全面排除所有 `/api/` 請求、Cloudflare Workers 伺服器請求與 `no-store`/`Authorization` 標頭請求，100% 走原生網路傳輸，徹底解決 `GET /api/backup` 被快取攔截導致 APP 未實際向伺服器發送請求及拋出 503 偽錯誤的根因。

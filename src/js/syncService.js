@@ -1903,6 +1903,65 @@ export class SyncService {
         }
     }
 
+    /**
+     * 設定自動備份開關
+     * @param {boolean} enabled
+     */
+    async setAutoBackupEnabled(enabled) {
+        await this.dataService.saveSetting({
+            key: 'sync_auto_backup_enabled',
+            value: enabled,
+        })
+        if (enabled) {
+            const intervalSetting = await this.dataService.getSetting(
+                'sync_auto_backup_interval'
+            )
+            this.startAutoBackup(intervalSetting?.value || 'daily')
+        } else {
+            this.stopAutoBackup()
+        }
+    }
+
+    /**
+     * 設定自動備份間隔
+     * @param {'daily'|'3days'|'weekly'} interval
+     */
+    async setAutoBackupInterval(interval) {
+        await this.dataService.saveSetting({
+            key: 'sync_auto_backup_interval',
+            value: interval,
+        })
+        const enabledSetting = await this.dataService.getSetting(
+            'sync_auto_backup_enabled'
+        )
+        if (enabledSetting?.value) {
+            this.startAutoBackup(interval)
+        }
+    }
+
+    /**
+     * 設定自動同步開關
+     * @param {boolean} enabled
+     */
+    async setAutoSyncEnabled(enabled) {
+        await this.dataService.saveSetting({
+            key: 'sync_auto_enabled',
+            value: enabled,
+        })
+        if (enabled) {
+            this.startAutoSync()
+        } else {
+            this.stopAutoSync()
+        }
+    }
+
+    /**
+     * 手動發起同步
+     */
+    async sync() {
+        return this.performSync(true)
+    }
+
     // ──────────────────────────────────────────────
     // Device ID
     // ──────────────────────────────────────────────

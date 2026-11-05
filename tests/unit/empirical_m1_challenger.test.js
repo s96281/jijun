@@ -237,10 +237,10 @@ describe('Empirical Challenger M1-2: Storage Behavior & SettingsPage Stress Suit
                 'manage-themes-btn',
                 'manage-ledgers-btn',
                 'cloud-sync-btn',
-                'advanced-account-mode-toggle',
-                'amortization-management-toggle',
-                'debt-management-toggle',
-                'group-management-toggle',
+                'manage-recurring-btn',
+                'calculator-mode-toggle',
+                'default-period-select',
+                'reminder-toggle',
             ]
 
             for (const id of requiredElements) {

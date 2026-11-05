@@ -1,5 +1,13 @@
 // 版本更新日誌模組
 export const CHANGELOG = {
+    '2.1.8.22': {
+        date: '2026-11-05',
+        title: '實驗功能設定項目簡化與清理',
+        improvements: [
+            '設定頁實驗功能精簡：依規劃僅保留「週期性交易」、「關閉計算機功能」、「明細預設時間範圍」與「每日提醒」四項，其餘實驗功能開關全面刪除清理。',
+            '契約測試與服務對齊：完善 SyncService 之 setAutoBackupEnabled、setAutoBackupInterval、setAutoSyncEnabled 與 sync 方法實作，確保同步設定操作契約完整通過。',
+        ],
+    },
     '2.1.8.21': {
         date: '2026-11-05',
         title: 'Service Worker API 旁路繞行與伺服器 URL 協議自動補全',
