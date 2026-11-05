@@ -430,7 +430,11 @@ export class SyncSettingsPage {
         const restoreBtn = document.getElementById('sync-restore-btn')
         if (restoreBtn) {
             restoreBtn.addEventListener('click', async () => {
+                const originalHtml = restoreBtn.innerHTML
                 try {
+                    restoreBtn.disabled = true
+                    restoreBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 載入中...'
+
                     const backups = await this.app.syncService.listBackups()
                     if (backups.length === 0) {
                         showToast('沒有找到任何備份', 'info')
@@ -611,6 +615,9 @@ export class SyncSettingsPage {
                 } catch (err) {
                     console.error('List backups error:', err)
                     showToast('取得備份列表失敗：' + err.message, 'error')
+                } finally {
+                    restoreBtn.disabled = false
+                    restoreBtn.innerHTML = originalHtml
                 }
             })
         }

@@ -1,5 +1,14 @@
 // 版本更新日誌模組
 export const CHANGELOG = {
+    '2.1.8.20': {
+        date: '2026-11-05',
+        title: 'CORS 標頭全面放寬與還原按鈕載入狀態保護',
+        improvements: [
+            '徹底解決 CORS Preflight 攔截：後端 Access-Control-Allow-Headers 改為萬用字元 (*)，前端 GET 請求移除自訂標頭避免觸發複雜跨域預檢，杜絕 Android WebView 拋出 503 錯誤。',
+            'Worker 頂層防護：加入全域 try-catch 攔截所有未捕獲異常，確保永遠回傳合法 JSON 錯誤訊息與 CORS Headers，不再被 Cloudflare 拋出預設 503 阻斷。',
+            '還原按鈕載入保護：設定頁點擊「從雲端還原」時加入載入指示 (Spinner) 與防連點保護，避免並發連續點擊佔用連線池。',
+        ],
+    },
     '2.1.8.19': {
         date: '2026-11-05',
         title: '雲端同步伺服器連線池最佳化與 503 錯誤修復',

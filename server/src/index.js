@@ -57,7 +57,7 @@ function getCorsHeaders(request, allowedOriginsStr) {
     headers.set('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS')
     headers.set(
         'Access-Control-Allow-Headers',
-        'Content-Type, Authorization, X-Requested-With'
+        '*'
     )
     headers.set('Access-Control-Max-Age', '86400')
     return headers
@@ -258,6 +258,19 @@ export async function handleRequest(request, env = {}, ctx = null) {
 
 export default {
     async fetch(request, env, ctx) {
-        return handleRequest(request, env, ctx)
+        try {
+            return await handleRequest(request, env, ctx)
+        } catch (fatalErr) {
+            console.error('[Fatal Worker Crash]:', fatalErr)
+            const corsHeaders = getCorsHeaders(request, env?.ALLOWED_ORIGINS)
+            return jsonResponse(
+                {
+                    error: '伺服器執行發生錯誤',
+                    message: fatalErr?.message || 'Unknown fatal error',
+                },
+                500,
+                corsHeaders
+            )
+        }
     },
 }

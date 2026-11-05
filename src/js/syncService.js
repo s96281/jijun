@@ -840,8 +840,6 @@ export class SyncService {
                 cache: 'no-store',
                 headers: {
                     Authorization: `Bearer ${this.accessToken}`,
-                    'Cache-Control': 'no-cache, no-store, must-revalidate',
-                    Pragma: 'no-cache',
                 },
             })
 
@@ -893,8 +891,6 @@ export class SyncService {
                 cache: 'no-store',
                 headers: {
                     Authorization: `Bearer ${this.accessToken}`,
-                    'Cache-Control': 'no-cache, no-store, must-revalidate',
-                    Pragma: 'no-cache',
                 },
             }
         )
@@ -939,8 +935,6 @@ export class SyncService {
                 cache: 'no-store',
                 headers: {
                     Authorization: `Bearer ${this.accessToken}`,
-                    'Cache-Control': 'no-cache, no-store, must-revalidate',
-                    Pragma: 'no-cache',
                 },
             }
         )

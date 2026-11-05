@@ -16,8 +16,8 @@ export function createRequestPool(connectionString) {
     return new Pool({
         connectionString: connStr,
         ssl: { rejectUnauthorized: false },
-        max: 1, // 每個請求獨立連線，避免 Serverless 凍結殘留死連線
-        connectionTimeoutMillis: 8000,
+        max: 2, // 允許最多 2 條連線，避免單一連線釋放延遲阻塞重試
+        connectionTimeoutMillis: 6000,
         idleTimeoutMillis: 1000,
     })
 }
