@@ -4,15 +4,13 @@
 //       真實存在于對應 service 類的 prototype 上，避免方法名/接縫被意外破壞。
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { describe, it, expect } from 'vitest'
 
 import DataService from '../../src/js/dataService.js'
-import { AIService } from '../../src/js/aiService.js'
 import { CategoryManager } from '../../src/js/categoryManager.js'
 import { ChangelogManager } from '../../src/js/changelog.js'
 import { BudgetManager } from '../../src/js/budgetManager.js'
 import { QuickSelectManager } from '../../src/js/quickSelectManager.js'
-import { DebtManager } from '../../src/js/debtManager.js'
-import { GroupManager } from '../../src/js/groupManager.js'
 import { LedgerManager } from '../../src/js/ledgerManager.js'
 import { PluginManager } from '../../src/js/pluginManager.js'
 import { SyncService } from '../../src/js/syncService.js'
@@ -25,13 +23,10 @@ import { EasyAccountingApp } from '../../src/js/main.js'
 // svc 名 -> 類 (與 main.js 的 this.app.xxx = new Xxx 綁定一致)
 const serviceClasses = {
     dataService: DataService,
-    aiService: AIService,
     categoryManager: CategoryManager,
     changelogManager: ChangelogManager,
     budgetManager: BudgetManager,
     quickSelectManager: QuickSelectManager,
-    debtManager: DebtManager,
-    groupManager: GroupManager,
     ledgerManager: LedgerManager,
     pluginManager: PluginManager,
     syncService: SyncService,
@@ -55,12 +50,11 @@ function stripComments(src) {
         .replace(/\/\/.*$/gm, '') // 單行 // 註釋
 }
 
-// 從清理後的源碼提取局部變量別名：const aiService = this.app.aiService
-// 返回 { 別名: svc名 }
-// 注意：僅匹配「完整 service 引用」——this.app.Y 後不能緊跟 . 、 ? 或 (（否則是屬性鏈/方法調用/可選鏈）
+// 從清理後的源碼提取局部變量別名：const xxx = this.app.xxx
 function extractAliases(src) {
     const aliases = {}
-    const re = /(?:const|let|var)\s+([a-zA-Z_$][\w$]*)\s*=\s*this\.app\.([a-zA-Z_]+)(?![\w$.?])/g
+    const re =
+        /(?:const|let|var)\s+([a-zA-Z_$][\w$]*)\s*=\s*this\.app\.([a-zA-Z_]+)(?![\w$.?])/g
     let m
     while ((m = re.exec(src))) {
         const [alias, svc] = [m[1], m[2]]
@@ -68,32 +62,37 @@ function extractAliases(src) {
             aliases[alias] = svc
         }
     }
-    // 也捕捉 constructor 裏的 this.xxx = app.xxx 或 this.app.xxx
-    const re2 = /this\.([a-zA-Z_$][\w$]*)\s*=\s*(?:app\.|this\.app\.)?([a-zA-Z_]+)(?![\w$.?])/g
+    const re2 =
+        /this\.([a-zA-Z_$][\w$]*)\s*=\s*(?:app\.|this\.app\.)?([a-zA-Z_]+)(?![\w$.?])/g
     while ((m = re2.exec(src))) {
         const [alias, svc] = [m[1], m[2]]
-        if (Object.prototype.hasOwnProperty.call(serviceClasses, svc) && !aliases[alias]) {
+        if (
+            Object.prototype.hasOwnProperty.call(serviceClasses, svc) &&
+            !aliases[alias]
+        ) {
             aliases[alias] = svc
         }
     }
     return aliases
 }
 
-// 提取每個頁面文件的 this.app.<svc>.<method>( 調用（支持換行、?.、別名）
+// 提取每個頁面文件的 this.app.<svc>.<method>( 調用
 function extractCalls(src) {
     const calls = new Set()
     const aliases = extractAliases(src)
-    // 先匹配 this.app.<svc>.<method>(  支持 ?. 和換行
-    const re = /this\.app\??\.\s*([a-zA-Z_$][\w$]*)\s*\??\.\s*([a-zA-Z_$][\w$]*)\s*\(/g
+    const re =
+        /this\.app\??\.\s*([a-zA-Z_$][\w$]*)\s*\??\.\s*([a-zA-Z_$][\w$]*)\s*\(/g
     let m
     while ((m = re.exec(src))) {
         if (NON_SERVICE.has(m[1])) continue
         calls.add({ svc: m[1], method: m[2] })
     }
-    // 再匹配局部變量別名: alias.method(  還原為 svc.method
     for (const [alias, svc] of Object.entries(aliases)) {
         const escapedAlias = alias.replace(/\$/g, '\\$')
-        const reAl = new RegExp(`${escapedAlias}\\s*\\.\\s*([a-zA-Z_$][\\w$]*)\\s*\\(`, 'g')
+        const reAl = new RegExp(
+            `${escapedAlias}\\s*\\.\\s*([a-zA-Z_$][\\w$]*)\\s*\\(`,
+            'g'
+        )
         while ((m = reAl.exec(src))) {
             calls.add({ svc, method: m[1] })
         }
@@ -101,10 +100,9 @@ function extractCalls(src) {
     return calls
 }
 
-// 提取每個頁面文件的 this.app.<method>( 直接方法調用（app 自身方法）
+// 提取每個頁面文件的 this.app.<method>( 直接方法調用
 function extractAppMethods(src) {
     const methods = new Set()
-    // 匹配 this.app.<method>(  支持 ?. 但排除 後面跟着 .method( 的 service 鏈式
     const re = /this\.app\??\.\s*([a-zA-Z_$][\w$]*)\s*\(/g
     let m
     while ((m = re.exec(src))) {
@@ -130,7 +128,10 @@ describe('頁面 → Service 契約測試', () => {
             for (const { svc, method } of calls) {
                 const Klass = serviceClasses[svc]
                 it(`調用的 this.app.${svc}.${method}() 應存在`, () => {
-                    expect(Klass, `頁面引用了未知 service '${svc}' (main.js 未綁定)`).toBeDefined()
+                    expect(
+                        Klass,
+                        `頁面引用了未知 service '${svc}' (main.js 未綁定)`
+                    ).toBeDefined()
                     expect(
                         typeof Klass.prototype[method],
                         `${svc}.${method} 在 ${Klass?.name || svc} 類上不存在`
@@ -147,8 +148,7 @@ describe('頁面 → Service 契約測試', () => {
             }
         })
     }
-    // 彙總斷言：確保契約測試真的抓到了調用（防止靜默空掃描）
     it('契約測試應抓到實際調用點', () => {
-        expect(totalCalls).toBeGreaterThan(50)
+        expect(totalCalls).toBeGreaterThan(15)
     })
 })

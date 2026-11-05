@@ -40,9 +40,9 @@ describe('GuideManager', () => {
         })
 
         it('hasSeenTour/markTourSeen 正確交互', () => {
-            expect(gm.hasSeenTour('debts')).toBe(false)
-            gm.markTourSeen('debts')
-            expect(gm.hasSeenTour('debts')).toBe(true)
+            expect(gm.hasSeenTour('recurring')).toBe(false)
+            gm.markTourSeen('recurring')
+            expect(gm.hasSeenTour('recurring')).toBe(true)
         })
     })
 
@@ -237,9 +237,9 @@ describe('GuideManager', () => {
 
         it('目標元素存在時渲染氣泡', () => {
             const el = document.createElement('button')
-            el.id = 'add-debt-btn'
+            el.id = 'recurring-list-container'
             document.body.appendChild(el)
-            const started = gm.startFeatureTour('debts')
+            const started = gm.startFeatureTour('recurring')
             expect(started).toBe(true)
             const bubble = document.getElementById('guide-tour-bubble')
             expect(bubble).toBeTruthy()
@@ -262,7 +262,7 @@ describe('GuideManager', () => {
             makeEl('#debt-list-container')
             makeEl('#toggle-debt-btn')
             makeEl('#debt-panel')
-            gm.startFeatureTour('debts')
+            gm.startFeatureTour('recurring')
             // 逐步點擊「下一步」推進，直到導覽結束
             for (let i = 0; i < 15; i++) {
                 const bubble = document.getElementById('guide-tour-bubble')
@@ -270,7 +270,7 @@ describe('GuideManager', () => {
                 bubble.querySelector('#guide-tour-next')?.click()
                 await new Promise(r => setTimeout(r, 20))
             }
-            expect(gm.hasSeenTour('debts')).toBe(true)
+            expect(gm.hasSeenTour('recurring')).toBe(true)
             document
                 .querySelectorAll(
                     '#summary-cards-container,#add-debt-btn,#show-summary-table-btn,#debt-list-container,#toggle-debt-btn,#debt-panel'
@@ -329,20 +329,7 @@ describe('GuideManager', () => {
             expect(document.getElementById('guide-tour-bubble')).toBeNull()
         })
 
-        it('首次進入欠款頁且未看過時觸發欠款導覽', async () => {
-            gm.markVersionCompleted('2.1.7.3')
-            // 欠款導覽第一步目標需存在
-            const el = document.createElement('button')
-            el.id = 'add-debt-btn'
-            document.body.appendChild(el)
-            gm.checkFeatureTour('debts')
-            // 等待內部 300ms 延遲
-            await new Promise(r => setTimeout(r, 400))
-            expect(document.getElementById('guide-tour-bubble')).toBeTruthy()
-            document.getElementById('guide-tour-bubble')?.remove()
-            el.remove()
-        })
-
+        
         it('首次進入統計頁觸發統計導覽', async () => {
             gm.markVersionCompleted('2.1.7.3')
             const el = document.createElement('div')
@@ -379,18 +366,7 @@ describe('GuideManager', () => {
             el.remove()
         })
 
-        it('首次進入群組頁觸發群組導覽', async () => {
-            gm.markVersionCompleted('2.1.7.3')
-            const el = document.createElement('button')
-            el.id = 'add-group-btn'
-            document.body.appendChild(el)
-            gm.checkFeatureTour('groups')
-            await new Promise(r => setTimeout(r, 400))
-            expect(document.getElementById('guide-tour-bubble')).toBeTruthy()
-            document.getElementById('guide-tour-bubble')?.remove()
-            el.remove()
-        })
-
+        
         it('首次進入首頁觸發預算導覽', async () => {
             gm.markVersionCompleted('2.1.7.3')
             const el = document.createElement('div')
@@ -403,20 +379,14 @@ describe('GuideManager', () => {
             el.remove()
         })
 
-        it('已看過欠款導覽後不再觸發', () => {
-            gm.markVersionCompleted('2.1.7.3')
-            gm.markTourSeen('debts')
-            gm.checkFeatureTour('debts')
-            expect(document.getElementById('guide-tour-bubble')).toBeNull()
-        })
-
+        
         it('setPendingTour 在同一頁面檢查時觸發對應導覽', async () => {
             gm.markVersionCompleted('2.1.7.3')
-            const el = document.createElement('button')
-            el.id = 'add-amort-btn'
+            const el = document.createElement('div')
+            el.id = 'recurring-list-container'
             document.body.appendChild(el)
-            gm.setPendingTour('amortizations', 'amortizations')
-            gm.checkFeatureTour('amortizations')
+            gm.setPendingTour('recurring', 'recurring')
+            gm.checkFeatureTour('recurring')
             await new Promise(r => setTimeout(r, 400))
             expect(document.getElementById('guide-tour-bubble')).toBeTruthy()
             document.getElementById('guide-tour-bubble')?.remove()
@@ -425,18 +395,16 @@ describe('GuideManager', () => {
 
         it('setPendingTour 在其他頁面不觸發（保留待導覽）', async () => {
             gm.markVersionCompleted('2.1.7.3')
-            // 預先標記欠款导览已看，避免跨页导览污染本测试（欠款導览含 goto 記账頁步骤）
-            gm.markTourSeen('debts')
-            const el = document.createElement('button')
-            el.id = 'add-amort-btn'
+            const el = document.createElement('div')
+            el.id = 'recurring-list-container'
             document.body.appendChild(el)
-            gm.setPendingTour('amortizations', 'amortizations')
-            // 先進入欠款頁（不匹配 pending 頁面），不應觸發攤提導览
-            gm.checkFeatureTour('debts')
+            gm.setPendingTour('recurring', 'recurring')
+            // 先進入 records 頁（不匹配 pending 頁面 recurring），不應觸發導覽
+            gm.checkFeatureTour('records')
             await new Promise(r => setTimeout(r, 400))
             expect(document.getElementById('guide-tour-bubble')).toBeNull()
-            // pending 保留，進入攤提頁時才觸發
-            gm.checkFeatureTour('amortizations')
+            // pending 保留，進入 recurring 頁時才觸發
+            gm.checkFeatureTour('recurring')
             await new Promise(r => setTimeout(r, 400))
             expect(document.getElementById('guide-tour-bubble')).toBeTruthy()
             document.getElementById('guide-tour-bubble')?.remove()
@@ -451,26 +419,15 @@ describe('GuideManager', () => {
             expect(gm.takePendingTour('groups')).toBeNull()
         })
 
-        it('首次進入攤提頁觸發攤提導覽', async () => {
-            gm.markVersionCompleted('2.1.7.3')
-            const el = document.createElement('button')
-            el.id = 'add-amort-btn'
-            document.body.appendChild(el)
-            gm.checkFeatureTour('amortizations')
-            await new Promise(r => setTimeout(r, 400))
-            expect(document.getElementById('guide-tour-bubble')).toBeTruthy()
-            document.getElementById('guide-tour-bubble')?.remove()
-            el.remove()
-        })
-    })
+            })
 
     describe('重置', () => {
         it('resetAllGuides 清除所有狀態', () => {
             gm.markVersionCompleted('2.1.7.3')
-            gm.markTourSeen('debts')
+            gm.markTourSeen('recurring')
             gm.resetAllGuides()
             expect(gm.isFirstLaunch()).toBe(true)
-            expect(gm.hasSeenTour('debts')).toBe(false)
+            expect(gm.hasSeenTour('recurring')).toBe(false)
         })
     })
 
@@ -527,18 +484,18 @@ describe('GuideManager', () => {
     describe('導覽互斥', () => {
         it('導覽進行中時 startFeatureTour 拒絕併發觸發', () => {
             gm._tourActive = true
-            const result = gm.startFeatureTour('debts')
+            const result = gm.startFeatureTour('recurring')
             expect(result).toBe(false)
         })
 
         it('首次啟動時 pending 導覽仍觸發（不受 isFirstLaunch 限制）', async () => {
             // 不調用 markVersionCompleted，保持 isFirstLaunch=true
             localStorage.removeItem('guide_completed_version')
-            const el = document.createElement('button')
-            el.id = 'add-amort-btn'
+            const el = document.createElement('div')
+            el.id = 'recurring-list-container'
             document.body.appendChild(el)
-            gm.setPendingTour('amortizations', 'amortizations')
-            gm.checkFeatureTour('amortizations')
+            gm.setPendingTour('recurring', 'recurring')
+            gm.checkFeatureTour('recurring')
             await new Promise(r => setTimeout(r, 400))
             expect(document.getElementById('guide-tour-bubble')).toBeTruthy()
             document.getElementById('guide-tour-bubble')?.remove()
@@ -548,7 +505,7 @@ describe('GuideManager', () => {
         it('導覽進行中時 checkFeatureTour 跳過', () => {
             gm.markVersionCompleted('2.1.7.3')
             gm._tourActive = true
-            gm.checkFeatureTour('debts')
+            gm.checkFeatureTour('recurring')
             expect(document.getElementById('guide-tour-bubble')).toBeNull()
         })
 
@@ -562,92 +519,10 @@ describe('GuideManager', () => {
         it('導覽進行中時 pending 導覽不被打斷', () => {
             gm.markVersionCompleted('2.1.7.3')
             gm._tourActive = true
-            gm.setPendingTour('amortizations', 'amortizations')
+            gm.setPendingTour('recurring', 'recurring')
             // checkFeatureTour 在導覽進行中應跳過，pending 保留
-            gm.checkFeatureTour('amortizations')
-            expect(gm.takePendingTour('amortizations')).not.toBeNull()
-        })
-    })
-
-    describe('開關開啟即顯示功能介紹', () => {
-        it('showToggleTour 立即顯示氣泡並設置 pending', () => {
-            localStorage.removeItem('guide_completed_version')
-            const gm2 = new GuideManager({})
-            gm2.showToggleTour('amortizations')
-            const bubble = document.getElementById('guide-tour-bubble')
-            expect(bubble).toBeTruthy()
-            expect(localStorage.getItem('guide_pending_tour')).toContain('amortizations')
-            document.getElementById('guide-tour-bubble')?.remove()
-        })
-
-        it('showToggleTour 對已看過的導覽不顯示', () => {
-            const gm2 = new GuideManager({})
-            gm2.markTourSeen('debts')
-            gm2.showToggleTour('debts')
-            expect(document.getElementById('guide-tour-bubble')).toBeNull()
-        })
-
-        it('showToggleTour 無 toggle 配置時不顯示', () => {
-            const gm2 = new GuideManager({})
-            gm2.showToggleTour('statistics')
-            expect(document.getElementById('guide-tour-bubble')).toBeNull()
-        })
-
-        it('點擊「去使用」跳轉到 goto 頁面', () => {
-            const gm2 = new GuideManager({})
-            gm2.showToggleTour('debts')
-            const bubble = document.getElementById('guide-tour-bubble')
-            expect(bubble).toBeTruthy()
-            // 驗證 goto 配置
-            document.getElementById('guide-tour-bubble')?.remove()
-            // 手動觸發導航回調（通過讀取 toggle 配置模擬）
-            expect(window.location.hash).toBeDefined()
-        })
-    })
-
-    describe('AI 記帳頁導覽需先開啟功能', () => {
-        it('未開啟 AI 時進入記帳頁不觸發 AI 導覽', () => {
-            localStorage.setItem('guide_completed_version', '2.1.7.3')
-            localStorage.setItem('ai_experimental_enabled', 'false')
-            gm.checkFeatureTour('add')
-            // 等過 setTimeout 後確認無氣泡
-            return new Promise(resolve => {
-                setTimeout(() => {
-                    const bubble = document.getElementById('guide-tour-bubble')
-                    expect(bubble).toBeNull()
-                    resolve()
-                }, 400)
-            })
-        })
-
-        it('開啟 AI 時進入記帳頁觸發 AI 導覽', async () => {
-            localStorage.setItem('guide_completed_version', '2.1.7.3')
-            localStorage.setItem('ai_experimental_enabled', 'true')
-            // 創建 AI 導覽的目標元素（記帳頁新增導按鈕）
-            const el = document.createElement('i')
-            el.id = 'nav-add-icon'
-            document.body.appendChild(el)
-            // 直接調用 startFeatureTour 排除 checkFeatureTour 的延遲干擾
-            const started = gm.startFeatureTour('ai')
-            expect(started).toBe(true)
-            const bubble = document.getElementById('guide-tour-bubble')
-            expect(bubble).toBeTruthy()
-            document.getElementById('guide-tour-bubble')?.remove()
-            el.remove()
-        })
-
-        it('關閉 AI 後殘留 pending tour 不觸發', () => {
-            localStorage.setItem('guide_completed_version', '2.1.7.3')
-            localStorage.setItem('ai_experimental_enabled', 'false')
-            localStorage.setItem('guide_pending_tour', JSON.stringify({ tourId: 'ai', page: 'add' }))
-            gm.checkFeatureTour('add')
-            return new Promise(resolve => {
-                setTimeout(() => {
-                    const bubble = document.getElementById('guide-tour-bubble')
-                    expect(bubble).toBeNull()
-                    resolve()
-                }, 400)
-            })
+            gm.checkFeatureTour('recurring')
+            expect(gm.takePendingTour('recurring')).not.toBeNull()
         })
     })
 
@@ -694,33 +569,33 @@ describe('GuideManager', () => {
 
         it('onChangelogClosed({ startTour: true }) 有待導覽時啟動該導覽並清空待導覽', () => {
             const spy = vi.spyOn(gm, 'startFeatureTour')
-            gm._pendingVersionTour = 'debts'
+            gm._pendingVersionTour = 'recurring'
             gm.onChangelogClosed({ startTour: true })
-            expect(spy).toHaveBeenCalledWith('debts')
+            expect(spy).toHaveBeenCalledWith('recurring')
             expect(gm._pendingVersionTour).toBeNull()
         })
 
         it('onChangelogClosed({ startTour: false }) 或預設關閉時不啟動導覽並標記已略過', () => {
             const spy = vi.spyOn(gm, 'startFeatureTour')
-            gm._pendingVersionTour = 'debts'
+            gm._pendingVersionTour = 'recurring'
             gm.onChangelogClosed({ startTour: false })
             expect(spy).not.toHaveBeenCalled()
-            expect(gm.hasSeenTour('debts')).toBe(true)
+            expect(gm.hasSeenTour('recurring')).toBe(true)
             expect(gm._pendingVersionTour).toBeNull()
         })
 
         it('onChangelogClosed({ startTour: true }) 導覽進行中時不啟動（導覽互斥）', () => {
             const spy = vi.spyOn(gm, 'startFeatureTour')
-            gm._pendingVersionTour = 'debts'
+            gm._pendingVersionTour = 'recurring'
             gm._tourActive = true
             gm.onChangelogClosed({ startTour: true })
             expect(spy).not.toHaveBeenCalled()
             // 待導覽保留，避免丟失
-            expect(gm._pendingVersionTour).toBe('debts')
+            expect(gm._pendingVersionTour).toBe('recurring')
         })
 
         it('onVersionUpdated 對已看過的導覽不設定待導覽', () => {
-            gm.markTourSeen('debts')
+            gm.markTourSeen('recurring')
             gm._pendingVersionTour = null
             gm.onVersionUpdated('9.9.9')
             expect(gm._pendingVersionTour).toBeNull()

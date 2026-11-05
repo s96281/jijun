@@ -274,26 +274,6 @@ describe('CalendarCashFlow 單元測試', () => {
         expect(html).toContain('&lt;script&gt;')
     })
 
-    it('22. _buildRecordHTML — 欠款 badge（已清償）', () => {
-        const container = document.createElement('div')
-        const cal = new CalendarCashFlow(mockDataService, mockCategoryManager, container)
-        cal.debtsMap = { 'd1': { settled: true } }
-
-        const r = { type: 'expense', amount: 100, category: 'food', debtId: 'd1' }
-        const html = cal._buildRecordHTML(r)
-        expect(html).toContain('已清償')
-    })
-
-    it('23. _buildRecordHTML — 欠款 badge（未清償）', () => {
-        const container = document.createElement('div')
-        const cal = new CalendarCashFlow(mockDataService, mockCategoryManager, container)
-        cal.debtsMap = { 'd1': { settled: false } }
-
-        const r = { type: 'expense', amount: 100, category: 'food', debtId: 'd1' }
-        const html = cal._buildRecordHTML(r)
-        expect(html).toContain('未還款')
-    })
-
     it('24. destroy 清理事件監聽器', () => {
         const container = document.createElement('div')
         const cal = new CalendarCashFlow(mockDataService, mockCategoryManager, container)

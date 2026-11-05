@@ -851,26 +851,15 @@ export class GuideManager {
         if (this.isFirstLaunch()) return
 
         const tourMap = {
-            debts: 'debts',
-            groups: 'groups',
-            contacts: 'debts',
-            accounts: 'accounts',
             ledgers: 'ledgers',
             statistics: 'statistics',
             stats: 'statistics',
             recurring: 'recurring',
-            amortizations: 'amortizations',
-            add: 'ai',
             home: 'budget',
         }
         const tourId = tourMap[pageName]
         if (!tourId) return
         if (this.hasSeenTour(tourId)) return
-
-        // AI 導覽僅在 AI 實驗功能已開啟時纔在記帳頁觸發（避免未開功能也彈導覽）
-        if (tourId === 'ai' && !(typeof window !== 'undefined' && localStorage.getItem('ai_experimental_enabled') === 'true')) {
-            return
-        }
 
         // 延遲一小段時間確保頁面 DOM 渲染完成
         setTimeout(() => {

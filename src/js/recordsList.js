@@ -5,11 +5,7 @@ import {
     getDateRange,
     escapeHTML,
     closeModalWithAnimation,
-    calculateEffectiveRecordAmount,
-    buildDebtLookupMaps,
-    findDebtForRecord,
-    isDebtSettlementRecord,
-} from './utils.js'
+    } from './utils.js'
 import { createDateRangeModal } from './datePickerModal.js'
 
 let isAppFirstLoaded = true
@@ -24,9 +20,9 @@ export class RecordsListManager {
         this.categoryManager = categoryManager
         this.container = container
         this.records = []
-        this.accounts = [] // Store accounts for display
-        this.debtsMap = {} // Store debts for display
-        this.debtMaps = buildDebtLookupMaps([])
+        
+        
+        
         this.advancedModeEnabled = false
         this.filters = {
             period: 'month',
@@ -463,17 +459,7 @@ export class RecordsListManager {
         })
         this.records = records // Store all records for the period
 
-        // Batch load all debts unconditionally to populate full lookup maps
-        // (handles record.debtId, debt.recordId, UUIDs across all ledgers)
-        try {
-            const allDebts = (await this.dataService.getDebts({ allLedgers: true })) || []
-            this.debtMaps = buildDebtLookupMaps(allDebts)
-            this.debtsMap = this.debtMaps.byId
-        } catch (e) {
-            console.warn('Failed to load debts for records list:', e)
-            this.debtMaps = buildDebtLookupMaps([])
-            this.debtsMap = {}
-        }
+        
 
         // Load contacts to display the counterparty name on debt labels
         this.contactsMap = {}
@@ -607,17 +593,9 @@ export class RecordsListManager {
         const summary = recordsForSummary.reduce(
             (acc, r) => {
                 // Exclude debt collection, repayment, balance adjustment, and card repayments from summary calculation
-                if (isDebtSettlementRecord(r)) {
-                    return acc
-                }
+                
 
-                const debt = findDebtForRecord(r, this.debtMaps)
-                const isGroupSettled = r.groupId
-                    ? r.groupStatus === 'settled' ||
-                      this.groupMetaCache?.[r.groupId]?.settled === true ||
-                      this.groupMetaCache?.[String(r.groupId)]?.settled === true
-                    : false
-                const effectiveAmount = calculateEffectiveRecordAmount(r, debt, { isGroupSettled })
+                const effectiveAmount = Number(r.amount) || 0
 
                 if (r.type === 'income') acc.income += effectiveAmount
                 else acc.expense += effectiveAmount
@@ -675,65 +653,8 @@ export class RecordsListManager {
             .sort((a, b) => new Date(b) - new Date(a))
             .map(date => {
                 const recordsOnDate = groupedByDate[date]
-
-                // Separate grouped and non-grouped records
-                const groupedRecords = recordsOnDate.filter(r => r.groupId)
-                const standaloneRecords = recordsOnDate.filter(r => !r.groupId)
-
-                // Group by groupId
-                const byGroupId = groupedRecords.reduce((acc, r) => {
-                    if (!acc[r.groupId]) acc[r.groupId] = []
-                    acc[r.groupId].push(r)
-                    return acc
-                }, {})
-
                 const dateHeader = `<h3 class="font-semibold text-wabi-text-primary px-2 pt-4 pb-2">${formatDate(date, 'long')}</h3>`
-
-                // Render group blocks
-                let groupsHtml = ''
-                for (const [groupId, groupRecs] of Object.entries(byGroupId)) {
-                    const meta = groupMetaCache[groupId] || {}
-                    const groupName = meta.name || `群組 ${groupId.slice(0, 8)}`
-                    // 總額（含所有紀錄）
-                    const totalExpense = groupRecs.filter(r => r.type === 'expense').reduce((s, r) => s + (r.amount || 0), 0)
-                    const totalIncome = groupRecs.filter(r => r.type === 'income').reduce((s, r) => s + (r.amount || 0), 0)
-                    const netAmount = totalIncome - totalExpense
-                    const isSettled = meta.settled === true
-
-                    const netLabel = netAmount >= 0 ? '+' : ''
-
-                    groupsHtml += `
-                    <div class="group-block mb-2" data-group-id="${groupId}">
-                        <div class="group-header flex flex-col md:flex-row md:items-center justify-between bg-wabi-primary/5 px-3 py-2 rounded-lg border border-wabi-primary/20 cursor-pointer hover:bg-wabi-primary/10 transition-colors gap-1.5 md:gap-2">
-                            <div class="flex items-center justify-between min-w-0 w-full md:w-auto">
-                                <div class="flex items-center gap-1.5 min-w-0">
-                                    <i class="fa-solid fa-layer-group text-wabi-primary text-sm shrink-0"></i>
-                                    <span class="font-medium text-wabi-text-primary text-sm truncate">${escapeHTML(groupName)}</span>
-                                    <span class="text-[11px] text-wabi-text-secondary shrink-0">(${groupRecs.length}筆)</span>
-                                    ${isSettled ? '<span class="text-[10px] bg-wabi-income/20 text-wabi-income px-1.5 py-0.5 rounded shrink-0 font-medium">已結清</span>' : ''}
-                                </div>
-                                <i class="fa-solid fa-chevron-down text-wabi-text-secondary text-xs group-chevron transition-transform ml-2 shrink-0 md:hidden" style="transform: rotate(180deg)"></i>
-                            </div>
-                            <div class="flex items-center justify-between md:justify-end gap-2 text-xs shrink-0 text-wabi-text-secondary pl-5 md:pl-0 w-full md:w-auto">
-                                <span>支出 ${formatCurrency(totalExpense)}</span>
-                                <span class="text-wabi-border hidden md:inline">·</span>
-                                <span class="font-medium ${netAmount >= 0 ? 'text-wabi-income' : 'text-wabi-expense'}">淨額 ${netLabel}${formatCurrency(netAmount)}</span>
-                                <i class="fa-solid fa-chevron-down text-wabi-text-secondary text-xs group-chevron transition-transform ml-2 shrink-0 hidden md:block" style="transform: rotate(180deg)"></i>
-                            </div>
-                        </div>
-                        <div class="group-body border-l-2 border-wabi-primary/20 pl-2 ml-1 mt-1 space-y-1">
-                    `
-                    // Render each record within the group with inGroupContext = true
-                    groupsHtml += groupRecs.map(record => this._renderSingleRecord(record, true)).join('')
-                    groupsHtml += `</div></div>`
-                }
-
-                // Render standalone records
-                const standaloneHtml = standaloneRecords
-                    .map(record => this._renderSingleRecord(record))
-                    .join('')
-
-                return dateHeader + groupsHtml + standaloneHtml
+                return dateHeader + recordsOnDate.map(r => this._renderSingleRecord(r)).join('')
             })
             .join('')
 
@@ -810,93 +731,20 @@ export class RecordsListManager {
         const color = isBalanceAdjustment
             ? 'bg-purple-500'
             : category?.color || 'bg-gray-400'
-        const debt = findDebtForRecord(record, this.debtMaps)
-        const isGroupSettled = record.groupId
-            ? record.groupStatus === 'settled' ||
-              this.groupMetaCache?.[record.groupId]?.settled === true ||
-              this.groupMetaCache?.[String(record.groupId)]?.settled === true
-            : false
-        const hasDebt = Boolean(debt || record.debtId || isGroupSettled)
-        const hasAmortization = !!record.amortizationId
+        const effectiveAmount = Number(record.amount) || 0
+        const mainAmount = record.amount
 
-        // Check debt status and calculate display
-        const isDebtSettled = Boolean(
-            debt?.settled === true ||
-            debt?.status === 'settled' ||
-            debt?.isSettled === true ||
-            Boolean(debt?.settledAt) ||
-            isGroupSettled ||
-            (debt?.remainingAmount !== undefined && Number(debt?.remainingAmount) <= 0) ||
-            (debt?.amount !== undefined && Number(debt?.amount) <= 0 && (debt?.remainingAmount === undefined || Number(debt?.remainingAmount) <= 0))
-        )
-        const isReceivable = debt?.type === 'receivable' // 別人欠我
-        const isDebtSettlement = isDebtSettlementRecord(record)
-
-        const effectiveAmount = calculateEffectiveRecordAmount(record, debt, { isGroupSettled })
-
-        const paidFromPayments = Array.isArray(debt?.payments)
-            ? debt.payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0)
-            : 0
-        let originalDebt = Number(
-            debt?.originalAmount ??
-            (paidFromPayments > 0 ? (Number(debt?.amount || 0) + paidFromPayments) : null) ??
-            debt?.amount ??
-            0
-        )
-        if (originalDebt <= 0 && record.amount > 0 && debt) {
-            originalDebt = Number(record.amount)
-        }
-        const remainingDebt = isDebtSettled
-            ? 0
-            : Number(debt?.remainingAmount ?? Math.max(0, originalDebt - paidFromPayments))
-        const isPartialRepaid = Boolean(debt && !isDebtSettled && remainingDebt < originalDebt && remainingDebt >= 0)
-
-        // Calculate display amount based on debt type and status
-        let showArrow = false
-        let strikethroughAmount = 0
-        let arrowAmount = 0
-        let arrowColor = 'text-wabi-income'
-
-        if (hasDebt && !isDebtSettlement) {
-            if (isGroupSettled && !debt && record.amount > 0) {
-                showArrow = true
-                strikethroughAmount = record.amount
-                arrowAmount = 0
-                arrowColor = 'text-wabi-income'
-            } else if (!isIncome && isReceivable) {
-                // 代墊支出：已還清或部分還款時顯示劃掉原額與箭頭指向實質/剩餘金額
-                if (isDebtSettled || isPartialRepaid) {
-                    showArrow = true
-                    strikethroughAmount = record.amount
-                    arrowAmount = effectiveAmount
-                    arrowColor = effectiveAmount === 0 ? 'text-wabi-income' : 'text-wabi-expense'
-                }
-            } else if (isIncome && isReceivable) {
-                // 別人欠我而產生的收入紀錄
-                if (isDebtSettled || isPartialRepaid) {
-                    showArrow = true
-                    strikethroughAmount = 0
-                    arrowAmount = effectiveAmount
-                    arrowColor = 'text-wabi-income'
-                }
-            } else if (!isIncome && !isReceivable) {
-                // 還別人錢
-                if (isDebtSettled || isPartialRepaid) {
-                    showArrow = true
-                    strikethroughAmount = 0
-                    arrowAmount = effectiveAmount
-                    arrowColor = 'text-wabi-expense'
-                }
-            } else if (isIncome && !isReceivable) {
-                // 先收別人的錢：還款時減少實質收入
-                if (isDebtSettled || isPartialRepaid) {
-                    showArrow = true
-                    strikethroughAmount = record.amount
-                    arrowAmount = effectiveAmount
-                    arrowColor = 'text-wabi-income'
-                }
-            }
-        }
+        const showArrow = false
+        const strikethroughAmount = 0
+        const arrowAmount = 0
+        const arrowColor = 'text-wabi-income'
+        const hasDebt = false
+        const isDebtSettled = false
+        const isPartialRepaid = false
+        const contactName = ''
+        const statusLabel = ''
+        const statusClass = ''
+        const shouldDim = false
 
         const colorStyle = color.startsWith('#')
             ? `style="background-color: ${color}"`
@@ -917,27 +765,6 @@ export class RecordsListManager {
             }
         }
 
-        const mainAmount = record.amount
-        const contactName =
-            hasDebt && debt?.contactId && this.contactsMap
-                ? this.contactsMap[debt.contactId]?.name
-                : ''
-        const statusLabel = hasDebt
-            ? isDebtSettled
-                ? `已還清${contactName ? '-' + contactName : ''}`
-                : isPartialRepaid
-                    ? `部分還款${contactName ? '-' + contactName : ''}`
-                    : `待還款${contactName ? '-' + contactName : ''}`
-            : ''
-        const statusClass = isDebtSettled
-            ? 'bg-wabi-income/20 text-wabi-income'
-            : isPartialRepaid
-                ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-                : 'bg-orange-100 text-orange-600'
-
-        const shouldDim =
-            hasDebt && isDebtSettled && effectiveAmount === 0
-
         // Group badge (若已處於群組展開方框內則隱藏重複標籤)
         let groupBadgeHtml = ''
         if (record.groupId && !inGroupContext) {
@@ -957,14 +784,14 @@ export class RecordsListManager {
                 <div class="flex flex-col justify-center min-w-0">
                     <div class="flex items-center gap-1.5 flex-wrap">
                         <p class="text-wabi-text-primary text-sm font-medium line-clamp-1">${escapeHTML(name)}</p>
-                        ${hasAmortization ? '<i class="fa-solid fa-credit-card text-blue-500 text-xs cursor-pointer amort-link-icon" title="分期計畫"></i>' : ''}
+                        
                         ${hasDebt ? `
                             <button class="debt-link-btn inline-flex items-center gap-1 text-[10px] ${statusClass} px-1.5 py-0.5 rounded hover:opacity-80 transition-all font-medium cursor-pointer" data-debt-id="${record.debtId}" title="查看關聯欠款">
                                 <i class="fa-solid fa-handshake"></i>
                                 <span>${escapeHTML(statusLabel || '欠款')}</span>
                             </button>
                         ` : ''}
-                        ${groupBadgeHtml}
+                        
                     </div>
                     ${hasDescription ? `<p class="text-wabi-text-secondary text-xs font-normal line-clamp-2 break-all mt-0.5">${escapeHTML(record.description)}</p>` : ''}
                 </div>
@@ -996,20 +823,14 @@ export class RecordsListManager {
         const validRecords = this.records.filter(
             r =>
                 r.category !== 'transfer' &&
-                !isDebtSettlementRecord(r)
+                true
         )
 
         const expenseCategoryTotals = Object.create(null)
         const incomeCategoryTotals = Object.create(null)
 
         validRecords.forEach(record => {
-            const debt = findDebtForRecord(record, this.debtMaps)
-            const isGroupSettled = record.groupId
-                ? record.groupStatus === 'settled' ||
-                  this.groupMetaCache?.[record.groupId]?.settled === true ||
-                  this.groupMetaCache?.[String(record.groupId)]?.settled === true
-                : false
-            const effectiveAmount = calculateEffectiveRecordAmount(record, debt, { isGroupSettled })
+            const effectiveAmount = Number(record.amount) || 0
             const cat = record.category
 
             if (record.type === 'expense') {
@@ -1210,79 +1031,7 @@ export class RecordsListManager {
         }
     }
 
-    showAccountFilterModal() {
-        const modalHtml = `
-            <div id="account-filter-modal" class="fixed inset-0 bg-black/50 z-50 flex justify-center items-end animate-fade-in" role="dialog" aria-modal="true" aria-labelledby="acc-filter-title">
-                <div class="bg-wabi-bg w-full max-w-lg rounded-t-2xl p-4 flex flex-col max-h-[80vh] animate-slide-up">
-                    <h3 id="acc-filter-title" class="text-lg font-bold text-wabi-primary text-center mb-4">篩選帳戶</h3>
-                    <div class="overflow-y-auto space-y-2 mb-4">
-                        ${this.accounts
-                            .map(account => {
-                                const isChecked = this.filters.accounts.has(
-                                    String(account.id)
-                                )
-                                return `
-                                <label class="flex items-center justify-between p-3 bg-wabi-surface rounded-lg border border-wabi-border">
-                                    <div class="flex items-center">
-                                        <input type="checkbox" data-acc-id="${account.id}" class="h-5 w-5 rounded text-wabi-primary focus:ring-wabi-primary/50" ${isChecked ? 'checked' : ''}>
-                                        <span class="ml-3 text-wabi-text-primary">${escapeHTML(account.name)}</span>
-                                    </div>
-                                </label>
-                            `
-                            })
-                            .join('')}
-                    </div>
-                    <div class="flex gap-2 mt-auto pt-2 border-t border-wabi-border">
-                        <button id="apply-acc-filter" class="flex-1 py-3 bg-wabi-accent text-wabi-primary font-bold rounded-lg">套用</button>
-                        <button id="close-acc-modal" class="flex-1 py-3 bg-wabi-border text-wabi-text-primary rounded-lg">關閉</button>
-                    </div>
-                </div>
-            </div>
-        `
-        this.modalsContainer.innerHTML = modalHtml
-
-        const accModal = this.modalsContainer.querySelector('#account-filter-modal')
-        const closeAccModal = onClosed => {
-            if (!accModal) {
-                this.modalsContainer.innerHTML = ''
-                if (typeof onClosed === 'function') onClosed()
-                return
-            }
-            closeModalWithAnimation(
-                accModal,
-                accModal.querySelector('.animate-slide-up'),
-                () => {
-                    this.modalsContainer.innerHTML = ''
-                    if (typeof onClosed === 'function') onClosed()
-                }
-            )
-        }
-
-        this.modalsContainer
-            .querySelector('#apply-acc-filter')
-            .addEventListener('click', () => {
-                const selected = new Set()
-                this.modalsContainer
-                    .querySelectorAll('input[type="checkbox"]:checked')
-                    .forEach(el => selected.add(el.dataset.accId))
-                this.filters.accounts = selected
-                this._saveSessionFilters()
-                this.applyFiltersAndRender()
-                closeAccModal()
-            })
-        this.modalsContainer
-            .querySelector('#close-acc-modal')
-            .addEventListener('click', () => closeAccModal())
-
-        // Close modal when clicking the overlay background
-        if (accModal) {
-            accModal.addEventListener('click', e => {
-                if (e.target.id === 'account-filter-modal') {
-                    closeAccModal()
-                }
-            })
-        }
-    }
+    
 
     showDateRangeModal() {
         const modal = createDateRangeModal({

@@ -3,7 +3,6 @@ import {
     formatDateToString,
     calculateNextDueDate,
     shouldSkipDate,
-    calculateAmortizationDetails,
     showToast,
     MAX_ITERATIONS,
 } from './utils.js'
@@ -20,14 +19,11 @@ import { BudgetManager } from './budgetManager.js'
 import { CategoryManager } from './categoryManager.js'
 import { ChangelogManager } from './changelog.js'
 import { QuickSelectManager } from './quickSelectManager.js'
-import { DebtManager } from './debtManager.js'
-import { GroupManager } from './groupManager.js'
 import { LedgerManager } from './ledgerManager.js'
 import { PluginManager } from './pluginManager.js'
 import { SyncService } from './syncService.js'
 import { NotificationService } from './notificationService.js'
 import { ThemeManager } from './themeManager.js'
-import { AIService } from './aiService.js'
 import { Router } from './router.js'
 import { GuideManager } from './tourManager.js'
 import { AppUpdateService } from './appUpdateService.js'
@@ -37,18 +33,13 @@ import { updateAndroidWidget } from './widgetHelper.js'
 import { HomePage } from './pages/homePage.js'
 import { AddPage } from './pages/addPage.js'
 import { SettingsPage } from './pages/settingsPage.js'
-import { AccountsPage } from './pages/accountsPage.js'
 import { RecurringPage } from './pages/recurringPage.js'
 import { SyncSettingsPage } from './pages/syncSettingsPage.js'
 import { PluginsPage } from './pages/pluginsPage.js'
 import { RecordsPage } from './pages/recordsPage.js'
 import { StatsPage } from './pages/statsPage.js'
 import { ComparisonPage } from './pages/comparisonPage.js'
-import { DebtsPage } from './pages/debtsPage.js'
-import { ContactsPage } from './pages/contactsPage.js'
 import { LedgersPage } from './pages/ledgersPage.js'
-import { GroupsPage } from './pages/groupsPage.js'
-import { AmortizationsPage } from './pages/amortizationsPage.js'
 import { StorePage } from './pages/storePage.js'
 import { ThemesPage } from './pages/themesPage.js'
 import { ThemeStorePage } from './pages/themeStorePage.js'
@@ -63,7 +54,6 @@ export class EasyAccountingApp {
         }
 
         this.dataService = new DataService()
-        this.aiService = new AIService(this.dataService)
         this.categoryManager = new CategoryManager(this.dataService)
         this.changelogManager = new ChangelogManager()
         // 為導覽系統提供 app 引用（Phase 5 版本導覽：Changelog 關閉後串列觸發）
@@ -73,8 +63,6 @@ export class EasyAccountingApp {
             this.categoryManager
         )
         this.quickSelectManager = new QuickSelectManager()
-        this.debtManager = new DebtManager(this.dataService, this)
-        this.groupManager = new GroupManager(this.dataService, this)
         this.ledgerManager = new LedgerManager(this.dataService, this)
         this.pluginManager = new PluginManager(this.dataService, this)
         this.syncService = new SyncService(this.dataService)
@@ -179,7 +167,6 @@ export class EasyAccountingApp {
         }
 
         this.processRecurringTransactions()
-        this.processAmortizations()
         this.processCreditCardStatements()
         this._setupCreditAutoPayScheduler()
 
@@ -227,13 +214,8 @@ export class EasyAccountingApp {
         this.router.register('add', new AddPage(this))
         this.router.register('stats', new StatsPage(this))
         this.router.register('settings', new SettingsPage(this))
-        this.router.register('accounts', new AccountsPage(this))
         this.router.register('recurring', new RecurringPage(this))
-        this.router.register('debts', new DebtsPage(this))
-        this.router.register('groups', new GroupsPage(this))
-        this.router.register('contacts', new ContactsPage(this))
         this.router.register('ledgers', new LedgersPage(this))
-        this.router.register('amortizations', new AmortizationsPage(this))
         this.router.register('plugins', new PluginsPage(this))
         this.router.register('store', new StorePage(this))
         this.router.register('themes', new ThemesPage(this))
@@ -612,188 +594,6 @@ export class EasyAccountingApp {
         }
     }
 
-    // ==================== 攤提/分期自動記帳 ====================
-    async processAmortizations() {
-        const today = formatDateToString(new Date())
-        const items = await this.dataService.getAmortizations({
-            allLedgers: true,
-        })
-
-        // 預先載入所有 records，按 amortizationId 分組 — 避免迴圈內 N+1 查詢
-        const allRecords = await this.dataService.getRecords({
-            allLedgers: true,
-        })
-        const recordsByAmortId = new Map()
-        for (const r of allRecords) {
-            if (r.amortizationId !== null && r.amortizationId !== undefined) {
-                const list = recordsByAmortId.get(r.amortizationId) || []
-                list.push(r)
-                recordsByAmortId.set(r.amortizationId, list)
-            }
-        }
-
-        // 預先載入所有帳戶（含信用卡）— 避免迴圈內 N+1 查詢
-        const allAccounts = await this.dataService.getAccounts({ allLedgers: true })
-        const accountById = new Map()
-        for (const a of allAccounts) accountById.set(a.id, a)
-
-        for (const item of items) {
-            try {
-                if (item.status !== 'active') continue
-
-                let { nextDueDate, completedPeriods } = item
-                const anchorDay = item.startDate
-                    ? parseInt(item.startDate.split('-')[2], 10)
-                    : (nextDueDate ? parseInt(nextDueDate.split('-')[2], 10) : null)
-                let iterations = 0
-
-                while (
-                    nextDueDate &&
-                    nextDueDate <= today &&
-                    completedPeriods < item.periods &&
-                    iterations < MAX_ITERATIONS
-                ) {
-                    iterations++
-
-                    // 處理最後一期的差額
-                    let generateAmount = item.amountPerPeriod
-                    if (
-                        completedPeriods === item.periods - 1 &&
-                        item.periods > 1
-                    ) {
-                        const principal = Math.max(
-                            0,
-                            item.totalAmount - (item.downPayment || 0)
-                        )
-                        const { exactTotalToPay } =
-                            calculateAmortizationDetails(
-                                principal,
-                                item.periods,
-                                item.interestRate || 0,
-                                item.frequency,
-                                item.decimalStrategy || 'round'
-                            )
-
-                        const historyRecords =
-                            recordsByAmortId.get(item.id) || []
-                        // upfront：轉帳對含「扣款帳戶支出 + 卡收入」兩腿，
-                        // 已還金額只算卡端收入腿（避免雙重計數）
-                        const paidSoFarFilter = item.chargeMode === 'upfront'
-                            ? (r) => r.type === 'income'
-                            : () => true
-                        const actualPaidSoFar = historyRecords
-                            .filter(paidSoFarFilter)
-                            .reduce((sum, r) => sum + r.amount, 0)
-                        const remaining = exactTotalToPay - actualPaidSoFar
-
-                        if (item.decimalStrategy === 'keep') {
-                            generateAmount = Math.max(
-                                0,
-                                Math.round(remaining * 100) / 100
-                            )
-                        } else {
-                            generateAmount = Math.max(0, Math.round(remaining))
-                        }
-                    }
-
-                    // 產生一筆記帳紀錄
-                    if (generateAmount > 0) {
-                        if (item.chargeMode === 'upfront') {
-                            // 信用卡分期：每期 = 轉帳對（扣款帳戶支出 + 卡收入）
-                            // 卡收入抵銷欠款 → 額度逐月釋放
-                            const card = accountById.get(item.accountId)
-                            const debitId =
-                                card && card.autoPayAccountId
-                                    ? card.autoPayAccountId
-                                    : null
-                            if (debitId) {
-                                const periodLabel = `第 ${completedPeriods + 1}/${item.periods} 期`
-                                const debitRecord = {
-                                    type: 'expense',
-                                    category: 'transfer',
-                                    amount: generateAmount,
-                                    description: `${item.name} 分期扣款 (${periodLabel})`,
-                                    date: nextDueDate,
-                                    accountId: debitId,
-                                    ledgerId: item.ledgerId,
-                                    amortizationId: item.id, // 標記關聯 ID
-                                }
-                                const incomeRecord = {
-                                    type: 'income',
-                                    category: 'transfer',
-                                    amount: generateAmount,
-                                    description: `${item.name} 分期還款入卡 (${periodLabel})`,
-                                    date: nextDueDate,
-                                    accountId: item.accountId,
-                                    ledgerId: item.ledgerId,
-                                    amortizationId: item.id, // 標記關聯 ID
-                                }
-                                await this.dataService.addRecord(debitRecord, true)
-                                await this.dataService.addRecord(incomeRecord, true)
-                                // 同步記憶體快取：同一次執行補跑多期時，
-                                // 末期差額分支才能看到本輪已記的款項（防多扣）
-                                const amortRecs =
-                                    recordsByAmortId.get(item.id) || []
-                                amortRecs.push(debitRecord, incomeRecord)
-                                recordsByAmortId.set(item.id, amortRecs)
-                            }
-                            // 無扣款帳戶：跳過紀錄、只推進期數（攤提頁顯示警示）
-                        } else {
-                            const newRecord = {
-                                type: item.recordType || 'expense',
-                                amount: generateAmount,
-                                category: item.category,
-                                description: `${item.name} (第 ${completedPeriods + 1}/${item.periods} 期)`,
-                                date: nextDueDate,
-                                accountId: item.accountId || undefined,
-                                ledgerId: item.ledgerId,
-                                amortizationId: item.id, // 標記關聯 ID
-                            }
-
-                            await this.dataService.addRecord(newRecord, true) // skipLog = true 以避免洗版
-                            // 同步記憶體快取（同上：補跑多期時末期差額需看到本輪款項）
-                            const amortRecs =
-                                recordsByAmortId.get(item.id) || []
-                            amortRecs.push(newRecord)
-                            recordsByAmortId.set(item.id, amortRecs)
-                        }
-                    }
-
-                    completedPeriods++
-
-                    // 計算下一期日期
-                    nextDueDate = calculateNextDueDate(
-                        nextDueDate,
-                        item.frequency,
-                        1,
-                        anchorDay
-                    )
-                }
-
-                // 更新攤提狀態
-                if (
-                    completedPeriods !== item.completedPeriods ||
-                    nextDueDate !== item.nextDueDate
-                ) {
-                    const updates = { completedPeriods, nextDueDate }
-                    if (completedPeriods >= item.periods) {
-                        updates.status = 'completed'
-                    }
-                    await this.dataService.updateAmortization(
-                        item.id,
-                        updates,
-                        true
-                    )
-                }
-            } catch (error) {
-                console.error(
-                    `處理攤提「${item.name || '(無名稱)'}」失敗，跳過並繼續:`,
-                    error
-                )
-            }
-        }
-    }
-
     // ==================== 信用卡自動出帳 ====================
     async processCreditCardStatements() {
         try {
@@ -1131,20 +931,10 @@ export class EasyAccountingApp {
      * 動態切換底部工作列中央新增按鈕之圖標 (AI 實驗功能開啟時切換為麥克風，編輯模式/關閉時為加號)
      * @param {boolean} [isEditMode=false]
      */
-    updateNavAddIcon(isEditMode = false) {
+    updateNavAddIcon() {
         const navAddIcon = document.getElementById('nav-add-icon')
         if (!navAddIcon) return
-
-        const currentHash = window.location.hash || '#home'
-        const isEditUrl = currentHash.includes('editRecordId=')
-        const isAddPage = (currentHash === '#add' || currentHash.startsWith('#add')) && !isEditUrl
-        const isAiEnabled = this.aiService ? this.aiService.isExperimentalEnabled() : false
-
-        if (isAddPage && isAiEnabled && !isEditMode) {
-            navAddIcon.className = 'fa-solid fa-microphone text-2xl md:text-xl'
-        } else {
-            navAddIcon.className = 'fa-solid fa-plus text-2xl md:text-xl'
-        }
+        navAddIcon.className = 'fa-solid fa-plus text-2xl md:text-xl'
     }
 }
 

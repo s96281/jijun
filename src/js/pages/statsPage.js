@@ -35,8 +35,7 @@ export class StatsPage {
         this.calendarInstance = new CalendarCashFlow(
             this.app.dataService,
             this.app.categoryManager,
-            calendarContainer,
-            this.app.debtManager
+            calendarContainer
         )
         await this.calendarInstance.render()
 

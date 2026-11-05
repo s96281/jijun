@@ -3,22 +3,18 @@ import {
     escapeHTML,
     formatDateToString,
     closeModalWithAnimation,
-    calculateEffectiveRecordAmount,
-    buildDebtLookupMaps,
-    findDebtForRecord,
-    isDebtSettlementRecord,
-} from './utils.js'
+    } from './utils.js'
 
 export class CalendarCashFlow {
-    constructor(dataService, categoryManager, container, debtManager) {
+    constructor(dataService, categoryManager, container, debtManager = null) {
         this.dataService = dataService
         this.categoryManager = categoryManager
         this.container = container
         this.debtManager = debtManager
         this.currentDate = new Date()
         this.records = []
-        this.debtsMap = {}
-        this.debtMaps = buildDebtLookupMaps([])
+        
+        
         this._grouped = null
         this._prevHandler = null
         this._nextHandler = null
@@ -53,16 +49,7 @@ export class CalendarCashFlow {
             this.records = []
         }
 
-        // Load debts unconditionally to populate full lookup maps
-        try {
-            const allDebts = (await this.dataService.getDebts({ allLedgers: true })) || []
-            this.debtMaps = buildDebtLookupMaps(allDebts)
-            this.debtsMap = this.debtMaps.byId
-        } catch (e) {
-            console.warn('Failed to load debts for calendar:', e)
-            this.debtMaps = buildDebtLookupMaps([])
-            this.debtsMap = {}
-        }
+        
 
         this._grouped = this.groupByDate(this.records)
         const grouped = this._grouped
@@ -71,10 +58,8 @@ export class CalendarCashFlow {
         let totalExpense = 0
         for (const dateRecords of Object.values(grouped)) {
             for (const r of dateRecords) {
-                if (r.category === 'transfer' || isDebtSettlementRecord(r)) continue
-                const debt = findDebtForRecord(r, this.debtMaps)
-                const isGroupSettled = r.groupStatus === 'settled'
-                const effAmt = calculateEffectiveRecordAmount(r, debt, { isGroupSettled })
+                if (r.category === 'transfer') continue
+                const effAmt = Number(r.amount) || 0
                 if (r.type === 'income') totalIncome += effAmt
                 else if (r.type === 'expense') totalExpense += effAmt
             }
@@ -204,10 +189,8 @@ export class CalendarCashFlow {
 
         let incomeSum = 0
         for (const r of dayRecords) {
-            if (r.category === 'transfer' || isDebtSettlementRecord(r)) continue
-            const debt = findDebtForRecord(r, this.debtMaps)
-            const isGroupSettled = r.groupStatus === 'settled'
-            const effAmt = calculateEffectiveRecordAmount(r, debt, { isGroupSettled })
+            if (r.category === 'transfer') continue
+            const effAmt = Number(r.amount) || 0
             if (r.type === 'income') incomeSum += effAmt
         }
 
@@ -217,12 +200,10 @@ export class CalendarCashFlow {
                 r =>
                     r.type === 'expense' &&
                     r.category !== 'transfer' &&
-                    !isDebtSettlementRecord(r)
+                    true
             )
             .map(r => {
-                const debt = findDebtForRecord(r, this.debtMaps)
-                const isGroupSettled = r.groupStatus === 'settled'
-                const effAmt = calculateEffectiveRecordAmount(r, debt, { isGroupSettled })
+                const effAmt = Number(r.amount) || 0
                 return { ...r, effAmt }
             })
             .filter(r => r.effAmt > 0)
@@ -241,16 +222,7 @@ export class CalendarCashFlow {
                 const catLabel = label(r.category)
                 const shortAmount = this._formatShort(r.effAmt)
 
-                // Debt badge for debt-linked records
-                let debtBadge = ''
-                if (r.debtId && this.debtsMap[r.debtId]) {
-                    const debt = this.debtsMap[r.debtId]
-                    if (debt.settled) {
-                        debtBadge = `<span class="ml-0.5 inline-flex shrink-0 text-[8px] leading-none rounded px-0.5 bg-emerald-500/20 text-emerald-600" title="已清償欠款">✓</span>`
-                    } else {
-                        debtBadge = `<span class="ml-0.5 inline-flex shrink-0 text-[8px] leading-none rounded px-0.5 bg-amber-500/20 text-amber-600" title="未清償欠款">⏳</span>`
-                    }
-                }
+                let debtBadge = ""
 
                 // Fix: min-w-0 on label so truncate works in flex child; max-w-[60%] to prevent overflow
                 barsHTML += `<div class="flex items-center justify-between text-[10px] leading-tight overflow-hidden">
@@ -334,13 +306,7 @@ export class CalendarCashFlow {
                     </div>
                 </div>
                 <div class="flex items-center gap-1.5 shrink-0">
-                    ${r.debtId && this.debtsMap[r.debtId]
-                        ? (this.debtsMap[r.debtId].settled
-                            ? '<span class="inline-flex text-[10px] leading-none rounded px-1 py-0.5 bg-emerald-500/20 text-emerald-600 font-medium" title="已清償欠款">已清償</span>'
-                            : '<span class="inline-flex text-[10px] leading-none rounded px-1 py-0.5 bg-amber-500/20 text-amber-600 font-medium" title="未清償欠款">未還款</span>'
-                          )
-                        : ''
-                    }
+                    
                     <span class="text-sm font-semibold ${colorClass}">${sign}${this._formatAmount(r.amount)}</span>
                 </div>
             </div>

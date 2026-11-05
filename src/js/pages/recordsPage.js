@@ -17,7 +17,7 @@ export class RecordsPage {
                     <button id="prev-period-btn" class="w-10 h-10 flex items-center justify-center text-wabi-text-secondary hover:text-wabi-primary hover:bg-wabi-bg rounded-full transition-colors">
                         <i class="fa-solid fa-chevron-left"></i>
                     </button>
-                    <h1 id="records-header-title" class="text-wabi-primary text-lg font-bold text-center flex-1 cursor-pointer hover:bg-wabi-bg py-1 rounded transition-colors mx-2"></h1>
+                    <h1 id="records-header-title" class="text-wabi-primary text-lg font-bold text-center flex-1 cursor-pointer hover:opacity-80 transition-opacity"></h1>
                     <button id="next-period-btn" class="w-10 h-10 flex items-center justify-center text-wabi-text-secondary hover:text-wabi-primary hover:bg-wabi-bg rounded-full transition-colors">
                         <i class="fa-solid fa-chevron-right"></i>
                     </button>
@@ -49,10 +49,6 @@ export class RecordsPage {
                     </div>
                     <button id="records-category-filter-btn" class="h-9 shrink-0 flex items-center justify-center gap-x-1.5 rounded-full bg-wabi-surface px-4 border border-wabi-border">
                         <p class="text-wabi-text-primary text-sm font-medium leading-normal">類別</p>
-                        <i class="fa-solid fa-chevron-down text-xs text-wabi-text-secondary"></i>
-                    </button>
-                    <button id="records-account-filter-btn" class="h-9 shrink-0 flex items-center justify-center gap-x-1.5 rounded-full bg-wabi-surface px-4 border border-wabi-border hidden">
-                        <p class="text-wabi-text-primary text-sm font-medium leading-normal">帳戶</p>
                         <i class="fa-solid fa-chevron-down text-xs text-wabi-text-secondary"></i>
                     </button>
                 </div>
@@ -87,12 +83,6 @@ export class RecordsPage {
             pageElement
         )
         this._recordsListManager = recordsListManager
-        if (params) {
-            const groupIdParam = params.get('groupId')
-            if (groupIdParam) {
-                recordsListManager.highlightGroupId = groupIdParam
-            }
-        }
         recordsListManager.init()
     }
 }
