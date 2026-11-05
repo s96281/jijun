@@ -687,6 +687,35 @@ export class SyncService {
     // ──────────────────────────────────────────────
 
     /**
+     * 封裝帶有暫時性故障 (502/503/504) 自動重試與容錯的 fetch
+     * @private
+     */
+    async _fetchWithRetry(url, options = {}, maxRetries = 1) {
+        let lastErr = null
+        for (let attempt = 0; attempt <= maxRetries; attempt++) {
+            try {
+                const res = await fetch(url, options)
+                if (res.ok) return res
+
+                // 若遇 502/503/504 暫時性伺服器冷啟動或連線抖動，延遲重試一次
+                if (attempt < maxRetries && (res.status === 502 || res.status === 503 || res.status === 504)) {
+                    await new Promise(r => setTimeout(r, 800))
+                    continue
+                }
+                return res
+            } catch (netErr) {
+                lastErr = netErr
+                if (attempt < maxRetries) {
+                    await new Promise(r => setTimeout(r, 800))
+                    continue
+                }
+                throw netErr
+            }
+        }
+        throw lastErr || new Error('Network request failed')
+    }
+
+    /**
      * 備份資料到雲端 PostgreSQL 資料庫
      * @returns {Promise<object>} 備份檔案的 metadata
      */
@@ -734,7 +763,7 @@ export class SyncService {
             groupsCount +
             ledgersCount
 
-        const res = await fetch(`${serverUrl}/api/backup`, {
+        const res = await this._fetchWithRetry(`${serverUrl}/api/backup`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -745,7 +774,12 @@ export class SyncService {
 
         if (!res.ok) {
             const err = await res.json().catch(() => ({}))
-            throw new Error(err.error || `備份失敗 (${res.status})`)
+            const errMsg =
+                err.error ||
+                (res.status === 503
+                    ? '伺服器忙碌中，請稍候重試'
+                    : `備份失敗 (${res.status})`)
+            throw new Error(errMsg)
         }
 
         const resData = await res.json()
@@ -801,7 +835,7 @@ export class SyncService {
 
         do {
             const queryParam = pageToken ? `?pageToken=${encodeURIComponent(pageToken)}` : ''
-            const res = await fetch(`${serverUrl}/api/backup${queryParam}`, {
+            const res = await this._fetchWithRetry(`${serverUrl}/api/backup${queryParam}`, {
                 method: 'GET',
                 cache: 'no-store',
                 headers: {
@@ -812,7 +846,13 @@ export class SyncService {
             })
 
             if (!res.ok) {
-                throw new Error(`無法載入備份清單 (${res.status})`)
+                const errData = await res.json().catch(() => null)
+                const errMsg =
+                    errData?.error ||
+                    (res.status === 503
+                        ? '伺服器忙碌中或正在連線資料庫，請稍候重試'
+                        : `無法載入備份清單 (${res.status})`)
+                throw new Error(errMsg)
             }
 
             const data = await res.json()
@@ -846,7 +886,7 @@ export class SyncService {
         await this.ensureValidToken()
 
         const serverUrl = this.serverUrl.replace(/\/+$/, '')
-        const res = await fetch(
+        const res = await this._fetchWithRetry(
             `${serverUrl}/api/backup/${encodeURIComponent(backupId)}`,
             {
                 method: 'GET',
@@ -860,7 +900,13 @@ export class SyncService {
         )
 
         if (!res.ok) {
-            throw new Error(`下載備份失敗 (${res.status})`)
+            const errData = await res.json().catch(() => null)
+            const errMsg =
+                errData?.error ||
+                (res.status === 503
+                    ? '伺服器忙碌中，請稍候重試'
+                    : `下載備份失敗 (${res.status})`)
+            throw new Error(errMsg)
         }
 
         const data = await res.json()
@@ -886,7 +932,7 @@ export class SyncService {
         await this.ensureValidToken()
 
         const serverUrl = this.serverUrl.replace(/\/+$/, '')
-        const res = await fetch(
+        const res = await this._fetchWithRetry(
             `${serverUrl}/api/backup/${encodeURIComponent(backupId)}`,
             {
                 method: 'DELETE',
@@ -901,7 +947,12 @@ export class SyncService {
 
         if (!res.ok && res.status !== 404) {
             const err = await res.json().catch(() => ({}))
-            throw new Error(err.error || `刪除備份失敗 (${res.status})`)
+            const errMsg =
+                err?.error ||
+                (res.status === 503
+                    ? '伺服器忙碌中，請稍候重試'
+                    : `刪除備份失敗 (${res.status})`)
+            throw new Error(errMsg)
         }
         return true
     }

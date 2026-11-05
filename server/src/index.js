@@ -248,11 +248,11 @@ export async function handleRequest(request, env = {}, ctx = null) {
             corsHeaders
         )
     } finally {
-        if (ctx && typeof ctx.waitUntil === 'function') {
-            ctx.waitUntil(pool.end().catch(() => {}))
-        } else {
-            await pool.end().catch(() => {})
-        }
+        // 在傳回 Response 之前必須 await 連線完全關閉釋放
+        // 否則 isolate 凍結會留下無法關閉的殭屍連線，導致 Prisma 連線池耗盡 (503)
+        await pool.end().catch(err => {
+            console.warn('[DB] pool.end() error:', err?.message)
+        })
     }
 }
 

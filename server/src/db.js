@@ -17,7 +17,7 @@ export function createRequestPool(connectionString) {
         connectionString: connStr,
         ssl: { rejectUnauthorized: false },
         max: 1, // 每個請求獨立連線，避免 Serverless 凍結殘留死連線
-        connectionTimeoutMillis: 5000,
+        connectionTimeoutMillis: 8000,
         idleTimeoutMillis: 1000,
     })
 }
@@ -33,6 +33,12 @@ export async function safeQuery(pool, text, params = []) {
             return await pool.query(text, params)
         } catch (err) {
             lastError = err
+            // 若遇資料表或關係尚未建立 (42P01)，按需即時建立結構並重試
+            if (err?.code === '42P01') {
+                console.warn('[DB] Table missing (42P01), ensuring schema on demand...')
+                await ensureTables(pool, true)
+                return await pool.query(text, params)
+            }
             const msg = String(err?.message || '').toLowerCase()
             const isRetryable =
                 msg.includes('upstream') ||
@@ -115,8 +121,6 @@ export async function registerUser(username, password, pool = getPool()) {
         throw new Error('密碼長度至少需 6 個字元')
     }
 
-    await ensureTables(pool)
-
     const existing = await safeQuery(
         pool,
         'SELECT id FROM users WHERE username = $1 LIMIT 1;',
@@ -150,8 +154,6 @@ export async function loginUser(username, password, pool = getPool()) {
         throw new Error('請輸入使用者名稱與密碼')
     }
 
-    await ensureTables(pool)
-
     const userRes = await safeQuery(
         pool,
         'SELECT id, username, password_hash FROM users WHERE username = $1 LIMIT 1;',
@@ -179,7 +181,6 @@ export async function loginUser(username, password, pool = getPool()) {
 
 export async function getUserFromToken(token, pool = getPool()) {
     if (!token) return null
-    await ensureTables(pool)
     const res = await safeQuery(
         pool,
         'SELECT u.id, u.username FROM sessions s JOIN users u ON s.user_id = u.id WHERE s.token = $1 AND s.expires_at > NOW();',
@@ -195,7 +196,6 @@ export async function logoutUser(token, pool = getPool()) {
 
 export async function refreshSession(token, pool = getPool()) {
     if (!token) return null
-    await ensureTables(pool)
     const user = await getUserFromToken(token, pool)
     if (!user) return null
     await safeQuery(
@@ -211,7 +211,6 @@ export async function refreshSession(token, pool = getPool()) {
 }
 
 export async function saveUserBackup(userId, fileName, data, deviceId, pool = getPool()) {
-    await ensureTables(pool)
     const jsonStr = typeof data === 'string' ? data : JSON.stringify(data)
     const sizeBytes = Buffer.byteLength(jsonStr, 'utf8')
 
@@ -234,7 +233,6 @@ export async function saveUserBackup(userId, fileName, data, deviceId, pool = ge
 }
 
 export async function listUserBackups(userId, pool = getPool()) {
-    await ensureTables(pool)
     const res = await safeQuery(
         pool,
         'SELECT id, file_name, size_bytes, created_at, device_id FROM backups WHERE user_id = $1 ORDER BY created_at DESC;',
@@ -244,7 +242,6 @@ export async function listUserBackups(userId, pool = getPool()) {
 }
 
 export async function getUserBackup(id, userId, pool = getPool()) {
-    await ensureTables(pool)
     const res = await safeQuery(
         pool,
         'SELECT id, file_name, data, size_bytes, created_at, device_id FROM backups WHERE id = $1 AND user_id = $2;',
@@ -254,7 +251,6 @@ export async function getUserBackup(id, userId, pool = getPool()) {
 }
 
 export async function deleteUserBackup(id, userId, pool = getPool()) {
-    await ensureTables(pool)
     const res = await safeQuery(
         pool,
         'DELETE FROM backups WHERE id = $1 AND user_id = $2 RETURNING id;',
