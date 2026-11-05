@@ -12,7 +12,6 @@ import { ChangelogManager } from '../../src/js/changelog.js'
 import { BudgetManager } from '../../src/js/budgetManager.js'
 import { QuickSelectManager } from '../../src/js/quickSelectManager.js'
 import { LedgerManager } from '../../src/js/ledgerManager.js'
-import { PluginManager } from '../../src/js/pluginManager.js'
 import { SyncService } from '../../src/js/syncService.js'
 import { NotificationService } from '../../src/js/notificationService.js'
 import { ThemeManager } from '../../src/js/themeManager.js'
@@ -28,7 +27,6 @@ const serviceClasses = {
     budgetManager: BudgetManager,
     quickSelectManager: QuickSelectManager,
     ledgerManager: LedgerManager,
-    pluginManager: PluginManager,
     syncService: SyncService,
     notificationService: NotificationService,
     themeManager: ThemeManager,

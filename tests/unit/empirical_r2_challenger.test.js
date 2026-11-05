@@ -63,9 +63,6 @@ describe('Empirical Challenger Suite: Requirement 2 (Global Repository & API Red
                 renderBudgetWidget: vi.fn().mockResolvedValue(''),
                 loadBudget: vi.fn().mockResolvedValue(),
             },
-            pluginManager: {
-                renderHomeWidgets: vi.fn(),
-            },
             notificationService: {
                 init: vi.fn().mockResolvedValue(),
             },

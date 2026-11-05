@@ -407,7 +407,6 @@ export function createMockApp(dataService, overrides = {}) {
             destroy: vi.fn(),
         },
         budgetManager: { renderBudgetWidget: vi.fn().mockResolvedValue(''), loadBudget: vi.fn().mockResolvedValue() },
-        pluginManager: { renderHomeWidgets: vi.fn() },
         changelogManager: { getAllVersions: () => [{ version: '2.1.8.5' }] },
         aiService: {
             getQuantization: () => 'q4_k_m',

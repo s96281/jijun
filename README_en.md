@@ -121,7 +121,6 @@
 | `credit_statements`| `id` (autoIncrement) | Locally derived monthly credit card billing statements |
 | `settings` | `key` | Key-value application configurations and sync metadata |
 | `theme` | `id` | Active and cached theme configurations |
-| `pluginState` | `id` | Installed plugin states and sandbox storage |
 
 ---
 
@@ -216,7 +215,6 @@ npm run build && npx cap copy android
 - **[Chinese Documentation (繁體中文說明文件)](README.md)** - Traditional Chinese project documentation
 - **[Full Change Log](CHANGE_LOG.md)** - Comprehensive history of updates and releases
 - **[Theme Development Guide](THEME_DEV_GUIDE.md)** - Guide for creating custom themes
-- **[Plugin Development Guide](PLUGIN_DEV_GUIDE.md)** - Extension API and sandbox architecture
 
 ---
 

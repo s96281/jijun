@@ -20,7 +20,6 @@ import { CategoryManager } from './categoryManager.js'
 import { ChangelogManager } from './changelog.js'
 import { QuickSelectManager } from './quickSelectManager.js'
 import { LedgerManager } from './ledgerManager.js'
-import { PluginManager } from './pluginManager.js'
 import { SyncService } from './syncService.js'
 import { NotificationService } from './notificationService.js'
 import { ThemeManager } from './themeManager.js'
@@ -35,12 +34,10 @@ import { AddPage } from './pages/addPage.js'
 import { SettingsPage } from './pages/settingsPage.js'
 import { RecurringPage } from './pages/recurringPage.js'
 import { SyncSettingsPage } from './pages/syncSettingsPage.js'
-import { PluginsPage } from './pages/pluginsPage.js'
 import { RecordsPage } from './pages/recordsPage.js'
 import { StatsPage } from './pages/statsPage.js'
 import { ComparisonPage } from './pages/comparisonPage.js'
 import { LedgersPage } from './pages/ledgersPage.js'
-import { StorePage } from './pages/storePage.js'
 import { ThemesPage } from './pages/themesPage.js'
 import { ThemeStorePage } from './pages/themeStorePage.js'
 import { PrivacyPage } from './pages/privacyPage.js'
@@ -64,7 +61,6 @@ export class EasyAccountingApp {
         )
         this.quickSelectManager = new QuickSelectManager()
         this.ledgerManager = new LedgerManager(this.dataService, this)
-        this.pluginManager = new PluginManager(this.dataService, this)
         this.syncService = new SyncService(this.dataService)
         try {
             localStorage.removeItem('adFreeUntil')
@@ -136,7 +132,6 @@ export class EasyAccountingApp {
             this.categoryManager.init(),
             this.budgetManager.loadBudget(),
             this.ledgerManager.init(),
-            this.pluginManager.init(),
             this.syncService.init(),
             this.notificationService.init(),
         ])
@@ -180,12 +175,12 @@ export class EasyAccountingApp {
             this.changelogManager.currentVersion
         this.guideManager.init(latestVersion)
 
-        // Connect DataService hooks to PluginManager & NotificationService
+        // Connect DataService hooks to NotificationService
         this.dataService.setHookProvider(async (hookName, payload) => {
-            if (hookName === 'afterAddRecord') {
+            if (hookName === 'afterAddRecord' || hookName === 'onRecordSaveAfter') {
                 this.notificationService.handleRecordAdded()
             }
-            return await this.pluginManager.triggerHook(hookName, payload)
+            return payload
         })
 
         // Setup sidebar ledger switcher
@@ -216,8 +211,6 @@ export class EasyAccountingApp {
         this.router.register('settings', new SettingsPage(this))
         this.router.register('recurring', new RecurringPage(this))
         this.router.register('ledgers', new LedgersPage(this))
-        this.router.register('plugins', new PluginsPage(this))
-        this.router.register('store', new StorePage(this))
         this.router.register('themes', new ThemesPage(this))
         this.router.register('theme-store', new ThemeStorePage(this))
         this.router.register('sync-settings', new SyncSettingsPage(this))
@@ -320,7 +313,7 @@ export class EasyAccountingApp {
         }
 
         // 每次渲染頁面完成後，同步更新 Widget 資料
-        this.pluginManager.registerHook('onPageRenderAfter', (pageName) => {
+        this.router.onRouteChanged = (pageName) => {
             if (['home', 'records'].includes(pageName)) {
                 updateAndroidWidget(this.dataService, this.budgetManager);
             }
@@ -335,7 +328,7 @@ export class EasyAccountingApp {
                     this.autoSelectCategoryOnAddPage(categoryId);
                 }, 100);
             }
-        });
+        };
     }
 
     /**

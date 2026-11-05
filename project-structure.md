@@ -23,8 +23,6 @@ src/js/
 ├── debtManager.js       # 欠款與群組管理 (欠款/借貸、聯絡人篩選與關聯群組過濾、群組分帳 AA 帳，支援點擊查看群組細部明細與單筆個別還款，群組部分收款/付款依淨額顯式傳遞 direction 單向沖銷避免現金流顛倒，群組詳情彈窗與個別還款彈窗完整顯示各筆明細之關聯欠款人/代墊人標籤與群組成員總覽，金額統計卡片與聯絡人總表完整納入群組欠款，進入頁面自動去重與新增聯絡人同名防呆)
 ├── changelog.js         # 更新日誌
 ├── datePickerModal.js   # 日期選擇器彈窗
-├── pluginManager.js     # 擴充功能系統
-├── pluginStorage.js     # 插件沙箱化儲存
 ├── syncService.js       # Google Drive 雲端備份&同步 (含跨裝置 groupMeta 群組資料同步、帳戶/聯絡人同名冪等防護、UUID 主動對齊、Update/Delete 業務鍵兜底防漏與防重複、markAllRemoteChangesAsPulled 檢查點更新與 _resolveDebtContactId 跨帳本外鍵解析、同步後自動觸發 deduplicateAccounts/deduplicateContacts)
 ├── tourManager.js       # 導覽功能核心引擎 (GuideManager 類別，歡迎 Modal、氣泡引導、自動實操演示、狀態持久化)
 ├── tours/               # 導覽定義模組目錄 (包含各功能獨立導覽設定檔與統一註冊表 index.js)
@@ -46,7 +44,6 @@ src/js/pages/
 ├── comparisonPage.js    # 跨月比較報表
 ├── ledgersPage.js       # 帳本管理頁面 (新增/編輯/刪除/切換帳本，含圖示搜尋、圖示選中態統一管理防 hover 覆蓋與自訂顏色)
 ├── amortizationsPage.js # 攤提/折舊/分期管理頁面 (新增/編輯/刪除，進度追蹤，首付+利息計算)
-├── pluginsPage.js       # 外掛管理：安裝、啟用、設定
 ├── themesPage.js        # 主題管理
 ├── themeStorePage.js    # 主題商店
 ├── storePage.js         # 商店頁面
@@ -69,20 +66,17 @@ android/                 # Capacitor Android 原生專案
 │   ├── AndroidManifest.xml  # 含 Widget/DeepLink 配置與原生權限
 │   ├── java/com/walkingfish/easyaccounting/
 │   │   ├── MainActivity.java           # 註冊 WidgetStoragePlugin
-│   │   ├── WidgetStoragePlugin.java     # 自訂儲存插件 (保存桌面統計/載具/捷徑/行事曆 Widget 資料)
+│   │   ├── WidgetStoragePlugin.java     # 自訂儲存插件 (保存桌面統計/捷徑/行事曆 Widget 資料)
 │   │   ├── EasyAccountingWidgetProvider.java # 桌面統計小工具 Provider
-│   │   ├── InvoiceCarrierWidgetProvider.java # 發票載具小工具 Provider (Code 39 繪製)
 │   │   ├── QuickCategoryWidgetProvider.java  # 快速分類捷徑小工具 Provider
 │   │   └── CalendarWidgetProvider.java       # 桌面行事曆金流小工具 Provider (42 格 6 週網格繪製)
 │   └── res/
 │       ├── layout/
 │       │   ├── widget_layout.xml       # 統計小工具佈局 XML
-│       │   ├── carrier_widget_layout.xml # 載具小工具佈局 XML
 │       │   ├── shortcut_widget_layout.xml # 快速捷徑小工具佈局 XML
 │       │   └── calendar_widget_layout.xml # 行事曆小工具佈局 XML
 │       ├── xml/
 │       │   ├── widget_info.xml         # 統計小工具設定 XML
-│       │   ├── carrier_widget_info.xml  # 載具小工具設定 XML
 │       │   ├── shortcut_widget_info.xml # 快速捷徑小工具設定 XML
 │       │   └── calendar_widget_info.xml # 行事曆小工具設定 XML
 │       └── drawable/                   # 小工具樣式與分類圓形背景、向量圖標 XML (ic_cat_food.xml 等)
@@ -116,7 +110,6 @@ README_en.md             # 專案英文主要說明文件
 CHANGE_LOG.md            # 版本更新日誌 (語意化版本紀錄)
 AGENTS.md                # AI Agent 專案架構規範與關鍵設計決策
 THEME_DEV_GUIDE.md       # 外觀主題擴充與商店格式開發指南
-PLUGIN_DEV_GUIDE.md      # 外掛系統 API 與沙箱架構開發指南
 project-structure.md     # 專案結構與模組說明 (本文件)
 
 tailwind.config.js       # Tailwind CSS 主題與外掛設定檔 (PostCSS build 用)
@@ -131,7 +124,6 @@ index.html               # 入口 HTML (零首屏第三方 CDN，Google SDK/QRCo
 - `main.js` → 所有模組 (中心樞紐)，**動態 import** `@capacitor/app`
 - `ledgerManager.js` → `dataService.js`, `utils.js`
 - `syncService.js` → `dataService.js` (按需載入 Google SDK)
-- `pluginManager.js` → `dataService.js`, `pluginStorage.js`
 
 ## 路由 (src/js/router.js)
 
@@ -149,7 +141,6 @@ index.html               # 入口 HTML (零首屏第三方 CDN，Google SDK/QRCo
 | `#comparison` | ComparisonPage | 比較報表 |
 | `#contacts` | ContactsPage | 聯絡人 |
 | `#ledgers` | LedgersPage | 帳本 |
-| `#plugins` | PluginsPage | 外掛 |
 | `#themes` | ThemesPage | 主題 |
 | `#themeStore` | ThemeStorePage | 主題商店 |
 | `#store` | StorePage | 商店 |
@@ -172,7 +163,6 @@ index.html               # 入口 HTML (零首屏第三方 CDN，Google SDK/QRCo
 | `amortizations` | `id` (autoIncrement) | 攤提計畫 (支援 upfront 與 periodic) |
 | `ledgers` | `id` (autoIncrement) | 帳本 |
 | `theme` | `id` | 主題 |
-| `pluginState` | `id` | 外掛狀態 |
 | `groupMeta` | `id` | 群組分帳元資料 |
 | `credit_statements` | `id` (autoIncrement) | 信用卡帳單 |
 

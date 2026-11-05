@@ -81,9 +81,6 @@ describe('Empirical Challenger M1-2: Storage Behavior & SettingsPage Stress Suit
                 renderBudgetWidget: vi.fn().mockResolvedValue(''),
                 loadBudget: vi.fn().mockResolvedValue(),
             },
-            pluginManager: {
-                renderHomeWidgets: vi.fn(),
-            },
             notificationService: {
                 init: vi.fn().mockResolvedValue(),
             },
@@ -233,7 +230,6 @@ describe('Empirical Challenger M1-2: Storage Behavior & SettingsPage Stress Suit
                 'privacy-btn',
                 'license-btn',
                 'force-update-btn',
-                'manage-plugins-btn',
                 'manage-themes-btn',
                 'manage-ledgers-btn',
                 'cloud-sync-btn',
@@ -278,10 +274,6 @@ describe('Empirical Challenger M1-2: Storage Behavior & SettingsPage Stress Suit
             document.getElementById('cloud-sync-btn').click()
             expect(window.location.hash).toBe('#sync-settings')
 
-            // Manage plugins button
-            document.getElementById('manage-plugins-btn').click()
-            expect(window.location.hash).toBe('#plugins')
-
             // Manage themes button
             document.getElementById('manage-themes-btn').click()
             expect(window.location.hash).toBe('#themes')
@@ -324,7 +316,7 @@ describe('Empirical Challenger M1-2: Storage Behavior & SettingsPage Stress Suit
             }
         })
 
-        it('E2.8: Android native platform renders set-invoice-carrier-btn cleanly', async () => {
+        it('E2.8: Android native platform does not render removed carrier or plugin buttons', async () => {
             globalThis.window.Capacitor = {
                 isNativePlatform: () => true,
                 getPlatform: () => 'android',
@@ -333,8 +325,8 @@ describe('Empirical Challenger M1-2: Storage Behavior & SettingsPage Stress Suit
             const page = new SettingsPage(mockApp)
             await page.render()
 
-            const carrierBtn = document.getElementById('set-invoice-carrier-btn')
-            expect(carrierBtn).not.toBeNull()
+            expect(document.getElementById('set-invoice-carrier-btn')).toBeNull()
+            expect(document.getElementById('manage-plugins-btn')).toBeNull()
 
             // Reset Capacitor mock
             globalThis.window.Capacitor = {

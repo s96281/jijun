@@ -867,3 +867,24 @@ export function calculateEffectiveRecordAmount(record, debt, options = {}) {
 }
 
 
+
+/**
+ * 比較兩個版本號字串 (例如 "2.1.0" 與 "2.0.9")
+ * @param {string} v1
+ * @param {string} v2
+ * @returns {number} 1 if v1 > v2, -1 if v1 < v2, 0 if equal
+ */
+export function compareVersions(v1, v2) {
+    if (!v1 || !v2) return 0
+    const p1 = String(v1).replace(/^v/, '').split('.').map(Number)
+    const p2 = String(v2).replace(/^v/, '').split('.').map(Number)
+    const len = Math.max(p1.length, p2.length)
+
+    for (let i = 0; i < len; i++) {
+        const num1 = Number.isNaN(p1[i]) ? 0 : p1[i] || 0
+        const num2 = Number.isNaN(p2[i]) ? 0 : p2[i] || 0
+        if (num1 > num2) return 1
+        if (num1 < num2) return -1
+    }
+    return 0
+}

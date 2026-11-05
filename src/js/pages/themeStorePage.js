@@ -1,4 +1,4 @@
-import { showToast, getStoreUrl } from '../utils.js'
+import { showToast, getStoreUrl, compareVersions } from '../utils.js'
 
 export class ThemeStorePage {
     constructor(app) {
@@ -54,7 +54,7 @@ export class ThemeStorePage {
 
                 if (installed) {
                     if (
-                        this.app.pluginManager.compareVersions(
+                        compareVersions(
                             t.version,
                             installed.version
                         ) > 0

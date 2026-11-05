@@ -197,7 +197,7 @@ export class AddPage {
             closeBtn.addEventListener('click', handleBack)
         }
 
-        // Plugin Support: Pre-fill from Session Storage
+        // Pre-fill Support: from Session Storage
         if (!recordId) {
             const tempDataStr = sessionStorage.getItem('temp_add_data')
             if (tempDataStr) {

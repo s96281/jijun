@@ -356,7 +356,6 @@ describe('updateAndroidWidget', () => {
                     { name: '餐飲', budget: 5000, spent: 2000, isOverBudget: false, percentage: 40, isExcluded: false }
                 ]
             })
-            localStorage.setItem('invoice_carrier_code', '/ABC123456')
 
             await updateAndroidWidget(mockDataService, mockBudgetManager)
 
@@ -365,8 +364,7 @@ describe('updateAndroidWidget', () => {
                 monthBalance: '+$6,850',
                 budgetProgressText: '預算已使用: 16% (3150/20000)',
                 budgetProgressVal: 16,
-                categoryBudgetStatus: '📊 餐飲已使用 40%',
-                carrierCode: '/ABC123456'
+                categoryBudgetStatus: '📊 餐飲已使用 40%'
             })
         })
 
@@ -401,28 +399,6 @@ describe('updateAndroidWidget', () => {
             await expect(
                 updateAndroidWidget(mockDataService, mockBudgetManager)
             ).resolves.not.toThrow()
-        })
-    })
-
-    // ── invoice_carrier_code ──────────────────────────
-
-    describe('invoice_carrier_code', () => {
-        it('should read carrier code from localStorage', async () => {
-            localStorage.setItem('invoice_carrier_code', '/ABC123456')
-
-            await updateAndroidWidget(mockDataService, mockBudgetManager)
-
-            expect(mockUpdateWidgetData).toHaveBeenCalledWith(
-                expect.objectContaining({ carrierCode: '/ABC123456' })
-            )
-        })
-
-        it('should default to empty string when carrier code not set', async () => {
-            await updateAndroidWidget(mockDataService, mockBudgetManager)
-
-            expect(mockUpdateWidgetData).toHaveBeenCalledWith(
-                expect.objectContaining({ carrierCode: '' })
-            )
         })
     })
 

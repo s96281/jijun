@@ -1,3 +1,16 @@
+## v2.1.8.25 (2026-11-05) - 徹底連根拔除擴充功能與發票載具
+
+- **徹底連根拔除擴充功能 (Plugins)**：
+    - 完整刪除 `PluginManager`、`PluginStorage`、`PluginsPage`、`StorePage`、`PLUGIN_DEV_GUIDE.md` 以及 `public/plugins/` 目錄下的全部插件。
+    - 移除首頁小工具容器與調整順序彈窗（`showWidgetOrderModal`），首頁回歸純粹的預算、收支統計與明細清單。
+    - 移除 CSS 中專門覆寫外掛的深色模式樣式（逾 110 行）。
+    - 重構 `Router`，去除所有對外掛鉤子與自訂外掛頁面的依賴，改以簡潔的 `onRouteChanged` 監聽頁面變更。
+- **徹底連根拔除發票載具 (Invoice Carrier)**：
+    - 移除設定頁「設定發票載具」選項及本地 localStorage 載具邏輯。
+    - 刪除 Android 原生端 `InvoiceCarrierWidgetProvider.java`、`carrier_widget_layout.xml`、`carrier_widget_info.xml`。
+    - 清理 `AndroidManifest.xml`、`strings.xml` 及 `WidgetStoragePlugin.java` 廣播與存儲。
+- **版本號同步**：應用程式版本升級至 v2.1.8.25，Android versionName (2.1.8.25) 與 versionCode (21825)。
+
 # 輕鬆記帳 2.0 - 更新日誌
 
 ## v2.1.8.24 (2026-11-05) - 專案核心精簡：徹底移除五大廢棄模組 (方案 B)

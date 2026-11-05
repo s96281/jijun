@@ -113,16 +113,13 @@ export async function updateAndroidWidget(dataService, budgetManager, calendarDa
         const { registerPlugin } = await import('@capacitor/core')
         const WidgetStorage = registerPlugin('WidgetStorage')
 
-        const carrierCode = localStorage.getItem('invoice_carrier_code') || ''
-
         // 6. 組裝傳入物件 (包含行事曆資料)
         const payload = {
             todayExpense: formatCurrency(todayExpense),
             monthBalance: balanceText,
             budgetProgressText: progressText,
             budgetProgressVal: progressVal,
-            categoryBudgetStatus: catBudgetStatusText,
-            carrierCode: carrierCode
+            categoryBudgetStatus: catBudgetStatusText
         }
 
         // 行事曆 Widget 資料
@@ -137,7 +134,7 @@ export async function updateAndroidWidget(dataService, budgetManager, calendarDa
 
         // 7. 直接將欄位攤平傳入，避免巢狀 getObject 解析失敗
         await WidgetStorage.updateWidgetData(payload)
-        console.log('[Widget] Data synchronized:', { todayExpense, monthBalance, progressVal, catBudgetStatusText, carrierCode, hasCalendar: !!calendarData })
+        console.log('[Widget] Data synchronized:', { todayExpense, monthBalance, progressVal, catBudgetStatusText, hasCalendar: !!calendarData })
     } catch (e) {
         console.error('[Widget] Failed to update Android Widget data:', e)
     }

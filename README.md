@@ -140,8 +140,6 @@
 │   │   ├── debtManager.js  # 欠款管理
 │   │   ├── changelog.js   # 版本更新日誌
 │   │   ├── datePickerModal.js # 共用日期選擇器彈窗
-│   │   ├── pluginManager.js # 擴充功能系統
-│   │   ├── pluginStorage.js # 插件沙箱化儲存
 │   │   ├── syncService.js # Google Drive 雲端同步 (Per-Device 獨立日誌與 Manifest)
 │   │   ├── tourManager.js # 新手引導與功能導覽核心
 │   │   ├── tours/         # 模組導覽情境腳本
@@ -495,7 +493,6 @@ npx cap open android
 - **[Android Release 簽名金鑰管理與覆蓋更新指南](docs/android-release-signing.md)** - Android Keystore 金鑰管理、CI/CD Secrets 配置與覆蓋升級規範
 - **[完整更新日誌](CHANGE_LOG.md)** - 查看所有版本的詳細更新記錄
 - **[主題開發指南](THEME_DEV_GUIDE.md)** - 深入了解外觀主題自訂與商店規格
-- **[擴充功能開發指南](PLUGIN_DEV_GUIDE.md)** - 插件系統 API 與沙箱架構說明
 
 ## 🤝 貢獻
 

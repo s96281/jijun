@@ -1,5 +1,14 @@
 // 版本更新日誌模組
 export const CHANGELOG = {
+    '2.1.8.25': {
+        date: '2026-11-05',
+        title: '徹底連根拔除擴充功能與發票載具',
+        improvements: [
+            '徹底連根拔除擴充功能 (Plugins)：移除 PluginManager、PluginStorage、PluginsPage、StorePage 與 public/plugins 目錄，簡化 Router 路由監聽機制與頁面渲染流程。',
+            '徹底連根拔除發票載具：完全移除 Web 設定項目及 Android 原生 InvoiceCarrierWidgetProvider 與相關版面配置，精簡 WidgetStoragePlugin 儲存橋接。',
+            '現代化路由與核心優化：Router 重構為純淨監聽機制，首頁移除小工具順序調整與 SortableJS 依賴，程式碼結構更輕量敏捷。',
+        ],
+    },
     '2.1.8.24': {
         date: '2026-11-05',
         title: '專案核心精簡：徹底移除五大廢棄模組 (方案 B)',

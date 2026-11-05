@@ -22,8 +22,6 @@ public class WidgetStoragePlugin extends Plugin {
             Integer budgetProgressVal = call.getInt("budgetProgressVal", 0);
             String categoryBudgetStatus = call.getString("categoryBudgetStatus", "");
 
-            String carrierCode = call.getString("carrierCode", "");
-
             String calendarDays = call.getString("calendarDays", "");
             String calendarMonthLabel = call.getString("calendarMonthLabel", "");
             String calendarToday = call.getString("calendarToday", "");
@@ -34,7 +32,6 @@ public class WidgetStoragePlugin extends Plugin {
                     + ", budgetProgressText=" + budgetProgressText
                     + ", budgetProgressVal=" + budgetProgressVal
                     + ", categoryBudgetStatus=" + categoryBudgetStatus
-                    + ", carrierCode=" + carrierCode
                     + ", calendarDays=" + (calendarDays != null ? calendarDays.substring(0, Math.min(50, calendarDays.length())) : "null"));
 
             SharedPreferences sharedPref = getContext().getSharedPreferences("WidgetData", Context.MODE_PRIVATE);
@@ -44,7 +41,6 @@ public class WidgetStoragePlugin extends Plugin {
             editor.putString("budget_progress_text", budgetProgressText);
             editor.putInt("budget_progress_val", budgetProgressVal != null ? budgetProgressVal : 0);
             editor.putString("category_budget_status", categoryBudgetStatus);
-            editor.putString("carrier_code", carrierCode);
             // Calendar widget data (only update if provided)
             if (call.hasOption("calendarDays")) {
                 editor.putString("calendar_days", call.getString("calendarDays", ""));
@@ -56,7 +52,6 @@ public class WidgetStoragePlugin extends Plugin {
 
             // 觸發所有 Widget 立即刷新
             EasyAccountingWidgetProvider.triggerUpdate(getContext());
-            InvoiceCarrierWidgetProvider.triggerUpdate(getContext());
             QuickCategoryWidgetProvider.triggerUpdate(getContext());
             CalendarWidgetProvider.triggerUpdate(getContext());
 

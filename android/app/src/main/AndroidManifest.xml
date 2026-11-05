@@ -54,18 +54,6 @@
                 android:resource="@xml/widget_info" />
         </receiver>
 
-        <!-- Invoice Carrier Widget -->
-        <receiver
-            android:name=".InvoiceCarrierWidgetProvider"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/carrier_widget_info" />
-        </receiver>
-
         <!-- Quick Category Shortcut Widget -->
         <receiver
             android:name=".QuickCategoryWidgetProvider"

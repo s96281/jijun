@@ -72,9 +72,6 @@ describe('SettingsPage & Global Links - R2 專案倉庫與更新連結重新導�
                 renderBudgetWidget: vi.fn().mockResolvedValue(''),
                 loadBudget: vi.fn().mockResolvedValue(),
             },
-            pluginManager: {
-                renderHomeWidgets: vi.fn(),
-            },
             notificationService: {
                 init: vi.fn().mockResolvedValue(),
             },

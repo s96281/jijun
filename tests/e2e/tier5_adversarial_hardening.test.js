@@ -219,10 +219,10 @@ describe('Tier 5: Adversarial Coverage Hardening (Adversarial White-Box)', () =>
             const url1 = getStoreUrl('')
             expect(url1).toBe('/')
 
-            const url2 = getStoreUrl('plugins/dark-theme.js')
-            expect(url2).toBe('/plugins/dark-theme.js')
+            const url2 = getStoreUrl('themes/dark-theme.json')
+            expect(url2).toBe('/themes/dark-theme.json')
 
-            const url3 = getStoreUrl('/plugins/deeply/nested/extension.json')
+            const url3 = getStoreUrl('/themes/deeply/nested/theme.json')
             expect(url3).toBe('/plugins/deeply/nested/extension.json')
 
             // Ensure no ad query parameters are injected
@@ -236,9 +236,9 @@ describe('Tier 5: Adversarial Coverage Hardening (Adversarial White-Box)', () =>
                 isNativePlatform: () => true
             }
 
-            const nativeUrl = getStoreUrl('/plugins/test.js')
-            expect(nativeUrl).toBe('https://jijun.the-walking-fish.com/plugins/test.js')
-            expect(nativeUrl).not.toContain('com//plugins')
+            const nativeUrl = getStoreUrl('/themes/test.json')
+            expect(nativeUrl).toBe('https://jijun.the-walking-fish.com/themes/test.json')
+            expect(nativeUrl).not.toContain('com//themes')
 
             globalThis.Capacitor = {
                 isNativePlatform: () => false

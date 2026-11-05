@@ -205,8 +205,8 @@ describe('Tier 1: Feature Coverage - Ad Removal & System Integrity', () => {
     describe('Feature 4: Store URL Functionality Retention', () => {
         it('F4.1: getStoreUrl returns relative path in web environment', () => {
             globalThis.Capacitor = { isNativePlatform: () => false }
-            const url = getStoreUrl('plugins/my-plugin.js')
-            expect(url).toBe('/plugins/my-plugin.js')
+            const url = getStoreUrl('themes/my-theme.json')
+            expect(url).toBe('/themes/my-theme.json')
         })
 
         it('F4.2: getStoreUrl properly normalizes leading slash paths', () => {
@@ -218,8 +218,8 @@ describe('Tier 1: Feature Coverage - Ad Removal & System Integrity', () => {
 
         it('F4.3: getStoreUrl prepends base URL in Capacitor native environment', () => {
             globalThis.Capacitor = { isNativePlatform: () => true }
-            const url = getStoreUrl('plugins/calculator.js')
-            expect(url).toContain('https://jijun.the-walking-fish.com/plugins/calculator.js')
+            const url = getStoreUrl('themes/custom-theme.json')
+            expect(url).toContain('https://jijun.the-walking-fish.com/themes/custom-theme.json')
         })
 
         it('F4.4: getStoreUrl produces clean URLs without ad or affiliate tracking parameters', () => {

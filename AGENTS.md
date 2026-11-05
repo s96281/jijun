@@ -19,8 +19,6 @@ src/js/
 ├── debtManager.js       # 欠款與群組管理 (欠款/借貸、聯絡人篩選與關聯群組過濾、群組分帳 AA 帳)
 ├── changelog.js         # 更新日誌
 ├── datePickerModal.js   # 日期選擇器彈窗
-├── pluginManager.js     # 擴充功能系統
-├── pluginStorage.js     # 插件沙箱化儲存
 ├── syncService.js       # Google Drive 雲端備份&同步 (Per-Device 獨立日誌共用帳本同步與 Manifest 架構)
 ├── tourManager.js       # 導覽功能核心引擎 (GuideManager 類別，歡迎 Modal、氣泡引導、自動實操演示、狀態持久化)
 ├── tours/               # 導覽定義模組目錄 (包含各功能獨立導覽設定檔與統一註冊表 index.js)
@@ -59,7 +57,6 @@ index.html               # 入口 HTML (零首屏第三方 CDN，Google SDK/QRCo
 - `main.js` → 所有模組 (中心樞紐)，**動態 import** `@capacitor/app`
 - `ledgerManager.js` → `dataService.js`, `utils.js`
 - `syncService.js` → `dataService.js` (按需載入 Google SDK)
-- `pluginManager.js` → `dataService.js`, `pluginStorage.js`
 
 ## 關鍵設計決策
 

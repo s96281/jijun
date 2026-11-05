@@ -7,7 +7,6 @@ import {
     getMonthRange,
     escapeHTML,
 } from '../utils.js'
-import Sortable from 'sortablejs'
 
 export class HomePage {
     constructor(app) {
@@ -64,15 +63,6 @@ export class HomePage {
                 <div id="budget-widget-container"></div>
 
 
-                <!-- Plugin Widgets -->
-                <div class="flex items-center justify-between mb-2 mt-6">
-                     <h3 class="text-sm font-bold text-wabi-text-secondary">小工具</h3>
-                     <button id="manage-widgets-btn" class="text-xs text-wabi-primary hover:underline bg-wabi-primary/10 px-2 py-1 rounded">
-                        <i class="fa-solid fa-sort mr-1"></i>調整順序
-                     </button>
-                </div>
-                <div id="plugin-home-widgets" class="mb-6"></div>
-
                 <!-- Recent Transactions -->
                 <div class="mb-12">
                     <div class="flex justify-between items-center mb-4">
@@ -95,18 +85,6 @@ export class HomePage {
         `
         this.setupEventListeners()
         await this.populateHomeMonthFilter()
-        this.app.pluginManager.renderHomeWidgets(
-            document.getElementById('plugin-home-widgets')
-        )
-
-        // Manage Widgets Handler
-        const manageWidgetsBtn = document.getElementById('manage-widgets-btn')
-        if (manageWidgetsBtn) {
-            manageWidgetsBtn.addEventListener('click', () =>
-                this.showWidgetOrderModal()
-            )
-        }
-
         await this.loadHomePageData()
     }
 
@@ -357,130 +335,5 @@ export class HomePage {
                 modal.remove()
             }
         })
-    }
-
-    showWidgetOrderModal() {
-        const modal = document.createElement('div')
-        modal.className =
-            'fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4 animation-fade-in'
-
-        const renderList = () => {
-            const order = this.app.pluginManager.widgetOrder
-            const activeWidgets = order.filter(id =>
-                this.app.pluginManager.homeWidgets.has(id)
-            )
-            const hiddenWidgets = this.app.pluginManager.hiddenWidgets
-
-            if (activeWidgets.length === 0)
-                return '<p class="text-center text-wabi-text-secondary py-4">無可用的小工具</p>'
-
-            return activeWidgets
-                .map((id, index) => {
-                    const name =
-                        this.app.pluginManager.getPluginName(id) || '未知小工具'
-                    const isHidden = hiddenWidgets.includes(id)
-                    const eyeIcon = isHidden ? 'fa-eye-slash' : 'fa-eye'
-                    const eyeColor = isHidden
-                        ? 'text-wabi-text-secondary'
-                        : 'text-wabi-primary'
-                    const opacityClass = isHidden ? 'opacity-50' : ''
-
-                    return `
-                   <div class="sortable-item flex items-center justify-between p-3 bg-wabi-bg rounded-lg border border-wabi-border mb-2 transition-all ${opacityClass}" data-id="${id}">
-                       <div class="flex items-center gap-2">
-                           <div class="drag-handle cursor-grab text-wabi-text-secondary px-1 touch-none shrink-0">
-                                <i class="fa-solid fa-grip-vertical"></i>
-                           </div>
-                           <span class="font-medium text-wabi-text-primary">${name}</span>
-                       </div>
-                       <button class="toggle-hide-btn p-2 hover:bg-wabi-surface rounded-md transition-colors ${eyeColor}" data-id="${id}">
-                           <i class="fa-solid ${eyeIcon}"></i>
-                       </button>
-                   </div>
-                `
-                })
-                .join('')
-        }
-
-        modal.innerHTML = `
-            <div class="bg-wabi-surface rounded-xl max-w-sm w-full p-6 shadow-xl transform transition-all scale-100 flex flex-col max-h-[80vh]">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-xl font-bold text-wabi-text-primary">調整顯示與順序</h3>
-                    <button id="close-widget-modal" class="text-wabi-text-secondary hover:text-wabi-text-primary">
-                        <i class="fa-solid fa-times text-xl"></i>
-                    </button>
-                </div>
-                <div id="widget-order-list" class="overflow-y-auto flex-1 mb-4 space-y-2">
-                    ${renderList()}
-                </div>
-                <div class="mt-auto pt-2 border-t border-wabi-border">
-                     <p class="text-xs text-center text-wabi-text-secondary">拖曳調整順序，點擊眼睛圖示切換顯示</p>
-                </div>
-            </div>
-        `
-        document.body.appendChild(modal)
-
-        const listEl = modal.querySelector('#widget-order-list')
-
-        const sortableInstance = new Sortable(listEl, {
-            animation: 150,
-            handle: '.drag-handle',
-            ghostClass: 'opacity-50',
-            onEnd: async () => {
-                const items = listEl.querySelectorAll('.sortable-item')
-                const newOrder = Array.from(items).map(item => item.dataset.id)
-                this.app.pluginManager.widgetOrder = newOrder
-                await this.app.pluginManager.saveWidgetOrder()
-            },
-        })
-
-        const bindEvents = () => {
-            modal.querySelectorAll('.toggle-hide-btn').forEach(btn => {
-                btn.addEventListener('click', async e => {
-                    const id = btn.dataset.id
-                    const hiddenWidgets = this.app.pluginManager.hiddenWidgets
-
-                    if (hiddenWidgets.includes(id)) {
-                        this.app.pluginManager.hiddenWidgets =
-                            hiddenWidgets.filter(wId => wId !== id)
-                    } else {
-                        this.app.pluginManager.hiddenWidgets.push(id)
-                    }
-
-                    await this.app.pluginManager.saveHiddenWidgets()
-
-                    // Update UI for the specific item without re-rendering the whole list (to avoid interrupting sortable)
-                    const itemEl = btn.closest('.sortable-item')
-                    const icon = btn.querySelector('i')
-
-                    if (this.app.pluginManager.hiddenWidgets.includes(id)) {
-                        icon.classList.remove('fa-eye')
-                        icon.classList.add('fa-eye-slash')
-                        btn.classList.remove('text-wabi-primary')
-                        btn.classList.add('text-wabi-text-secondary')
-                        itemEl.classList.add('opacity-50')
-                    } else {
-                        icon.classList.remove('fa-eye-slash')
-                        icon.classList.add('fa-eye')
-                        btn.classList.remove('text-wabi-text-secondary')
-                        btn.classList.add('text-wabi-primary')
-                        itemEl.classList.remove('opacity-50')
-                    }
-                })
-            })
-        }
-        bindEvents()
-
-        const close = () => {
-            modal.remove()
-            // Re-render home widgets to reflect changes immediately
-            this.app.pluginManager.renderHomeWidgets(
-                document.getElementById('plugin-home-widgets')
-            )
-        }
-
-        modal
-            .querySelector('#close-widget-modal')
-            .addEventListener('click', close)
     }
 }

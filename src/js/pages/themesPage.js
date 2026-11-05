@@ -1,4 +1,4 @@
-import { showToast, customConfirm, getStoreUrl } from '../utils.js'
+import { showToast, customConfirm, getStoreUrl, compareVersions } from '../utils.js'
 import { DARK_THEME_ID, THEME_MODES } from '../themeManager.js'
 
 export class ThemesPage {
@@ -38,7 +38,7 @@ export class ThemesPage {
             const store = storeMap.get(t.id)
             if (!store || !store.file) return false
             return (
-                this.app.pluginManager.compareVersions(
+                compareVersions(
                     store.version,
                     t.version
                 ) > 0

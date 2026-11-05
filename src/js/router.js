@@ -6,6 +6,7 @@ export class Router {
         this.routes = {}
         this.currentHash = null
         this.navItems = document.querySelectorAll('.nav-item')
+        this.onRouteChanged = null
     }
 
     register(name, page) {
@@ -14,9 +15,6 @@ export class Router {
 
     init() {
         window.addEventListener('hashchange', () => this.handleRouteChange())
-        document.addEventListener('click', e => {
-            this.app.pluginManager.triggerHook('onPageClick', e)
-        })
 
         // Initial route
         this.handleRouteChange()
@@ -44,16 +42,8 @@ export class Router {
         window.scrollTo(0, 0)
 
         try {
-            await this.app.pluginManager.triggerHook(
-                'onPageRenderBefore',
-                pageName
-            )
-
             const page = this.routes[pageName]
             if (page) {
-                if (this.app.appContainer && this.app.appContainer.classList) {
-                    this.app.appContainer.classList.remove('plugin-page')
-                }
                 if (page.render) {
                     await page.render(params)
                 } else {
@@ -62,34 +52,17 @@ export class Router {
                     )
                 }
             } else {
-                // Check for custom pages from plugins
-                const customPage =
-                    this.app.pluginManager.getCustomPage(pageName)
-                if (customPage) {
-                    this.app.appContainer.innerHTML = '' // Clear container
-                    if (this.app.appContainer && this.app.appContainer.classList) {
-                        this.app.appContainer.classList.add('plugin-page')
-                    }
-                    try {
-                        customPage.renderFn(this.app.appContainer)
-                    } catch (e) {
-                        console.error('Error rendering custom page:', e)
-                        showToast('頁面載入失敗', 'error')
-                    }
-                } else {
-                    console.warn(
-                        'Route not found, redirecting to home:',
-                        pageName
-                    )
-                    window.location.hash = 'home'
-                    return
-                }
+                console.warn(
+                    'Route not found, redirecting to home:',
+                    pageName
+                )
+                window.location.hash = 'home'
+                return
             }
 
-            await this.app.pluginManager.triggerHook(
-                'onPageRenderAfter',
-                pageName
-            )
+            if (typeof this.onRouteChanged === 'function') {
+                this.onRouteChanged(pageName)
+            }
 
             // 導覽功能：#U08 特定功能頁面觸發對應導覽（如欠款、多帳戶）
             if (this.app.guideManager) {
