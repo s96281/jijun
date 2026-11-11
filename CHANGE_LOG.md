@@ -1,10 +1,3 @@
-## v2.1.8.26 (2026-11-11) - 修復備份匯入與雲端還原失敗
-
-- **補建缺漏資料表**：資料庫升級中斷會造成 `credit_statements`、`groupMeta` 等 object store 缺失，匯入/雲端還原因而拋出 NotFoundError；新增 `_repairMissingStores()` 於啟動時自動補建。
-- **安全快照修正**：`_exportFullBackup` 改用 `getAll()`，匯入失敗時可正確自動還原。
-- **舊版備份相容**：依 `records` 陣列判斷格式、字串金額轉數字、重複 uuid 重新產生。
-- **版本號同步**：v2.1.8.26，Android versionName (2.1.8.26) 與 versionCode (21826)。
-
 ## v2.1.8.25 (2026-11-05) - 徹底連根拔除擴充功能與發票載具
 
 - **徹底連根拔除擴充功能 (Plugins)**：

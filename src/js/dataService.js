@@ -98,9 +98,6 @@ class DataService {
                     throw e
                 }
 
-                // 補齊因升級中斷/版本錯位而缺漏的 object store（否則匯入/還原會拋 NotFoundError）
-                await this._repairMissingStores()
-
                 // If it's the first time using the app, try to migrate from localStorage
                 await this.migrateFromLocalStorage()
             } else {
@@ -161,75 +158,6 @@ class DataService {
                     '），資料可能仍存在資料庫中，請重新載入或從備份還原',
                 { cause: error }
             )
-        }
-    }
-
-    /**
-     * 檢查必要 object store / index 是否齊全，缺漏則以 version+1 重開補建。
-     * 背景：_runUpgrade 會吞掉例外，DB 版本被推進但部分 store 沒建立，
-     * 之後 importData / 雲端還原 清除資料時會拋
-     * "No objectStore named xxx in this database"。
-     */
-    async _repairMissingStores() {
-        try {
-            if (!this.db) return
-            const spec = {
-                records: [],
-                settings: [],
-                accounts: [],
-                files: [],
-                contacts: [],
-                debts: [],
-                plugins: [],
-                themes: [],
-                recurring_transactions: [],
-                sync_log: [['timestamp', false]],
-                ledgers: [['uuid', true]],
-                amortizations: [
-                    ['uuid', true],
-                    ['ledgerId', false],
-                    ['status', false],
-                ],
-                credit_statements: [
-                    ['uuid', true],
-                    ['accountId', false],
-                    ['ledgerId', false],
-                    ['period', false],
-                    ['status', false],
-                ],
-                groupMeta: [
-                    ['uuid', true],
-                    ['ledgerId', false],
-                ],
-            }
-            const keyPaths = { settings: 'key', plugins: 'id', themes: 'id', groupMeta: 'id' }
-            const missing = Object.keys(spec).filter(
-                n => !this.db.objectStoreNames.contains(n)
-            )
-            if (missing.length === 0) return
-            console.warn('[DataService] 偵測到缺漏的 object store，嘗試補建:', missing)
-            const nextVersion = this.db.version + 1
-            this.db.close()
-            this.db = await openDB(this.dbName, nextVersion, {
-                upgrade: db => {
-                    for (const name of missing) {
-                        if (db.objectStoreNames.contains(name)) continue
-                        const kp = keyPaths[name] || 'id'
-                        const store = db.createObjectStore(name, {
-                            keyPath: kp,
-                            autoIncrement: !keyPaths[name],
-                        })
-                        for (const [idx, unique] of spec[name]) {
-                            store.createIndex(idx, idx, { unique })
-                        }
-                    }
-                },
-            })
-        } catch (e) {
-            console.error('[DataService] 補建缺漏 object store 失敗:', e)
-            if (!this.db) {
-                this.db = await openDB(this.dbName)
-            }
         }
     }
 
@@ -2592,43 +2520,19 @@ class DataService {
                     const oldRecordIdToNewIdMap = new Map()
 
                     let recordsSource = []
-                    if (Array.isArray(data.records)) {
-                        // 新格式（含各版本 version 值，如數字/1.x/2.x/缺漏）一律以 records 陣列為準
-                        recordsSource = data.records
+                    if (data.version && data.version.startsWith('2.')) {
+                        recordsSource = data.records || []
                     } else {
                         recordsSource = this.convertOldDataFormat(data)
                     }
 
-                    const _seenRecordUuids = new Set()
-                    const validRecords = recordsSource
-                        .filter(record => record && typeof record === 'object')
-                        .map(record => {
-                            // 舊版備份金額可能為字串
-                            if (
-                                typeof record.amount === 'string' &&
-                                record.amount.trim() !== '' &&
-                                !isNaN(Number(record.amount))
-                            ) {
-                                record = { ...record, amount: Number(record.amount) }
-                            }
-                            // uuid 唯一索引：重複 uuid 會使整批匯入交易中止
-                            if (record.uuid) {
-                                if (_seenRecordUuids.has(record.uuid)) {
-                                    record = { ...record, uuid: undefined }
-                                } else {
-                                    _seenRecordUuids.add(record.uuid)
-                                }
-                            }
-                            return record
-                        })
-                        .filter(
-                            record =>
-                                record.date &&
-                                record.type &&
-                                record.category &&
-                                typeof record.amount === 'number' &&
-                                !isNaN(record.amount)
-                        )
+                    const validRecords = recordsSource.filter(
+                        record =>
+                            record.date &&
+                            record.type &&
+                            record.category &&
+                            typeof record.amount === 'number'
+                    )
 
                     const txRecords = this.db.transaction(
                         'records',
@@ -2931,7 +2835,7 @@ class DataService {
         for (const storeName of stores) {
             try {
                 const tx = this.db.transaction(storeName, 'readonly')
-                backup[storeName] = await tx.store.getAll()
+                backup[storeName] = await tx.store.toArray()
                 await tx.done
             } catch (e) {
                 console.warn(`備份 store ${storeName} 失敗:`, e)
