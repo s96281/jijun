@@ -1,5 +1,14 @@
 // 版本更新日誌模組
 export const CHANGELOG = {
+    '2.1.8.26': {
+        date: '2026-11-11',
+        title: '修復備份匯入與雲端還原失敗',
+        improvements: [
+            '修復資料庫升級中斷導致缺少 object store（如 credit_statements、groupMeta），匯入備份與雲端還原拋出 NotFoundError 的問題；啟動時自動補建缺漏資料表。',
+            '匯入前安全快照改用 getAll()，修正快照一律為空導致失敗時無法自動還原。',
+            '舊版備份相容：依 records 陣列判斷格式、字串金額自動轉數字、重複 uuid 自動重新產生。',
+        ],
+    },
     '2.1.8.25': {
         date: '2026-11-05',
         title: '徹底連根拔除擴充功能與發票載具',
